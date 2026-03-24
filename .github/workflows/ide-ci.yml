@@ -25,7 +25,7 @@ jobs:
           version: 0.15.2
 
       - name: Build
-        run: zig build -Demit-macos-app=false
+        run: zig build -Demit-xcframework=true -Dxcframework-target=universal -Doptimize=ReleaseFast
 
       - name: Test (core)
         run: zig build test

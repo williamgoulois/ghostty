@@ -337,6 +337,10 @@ class AppDelegate: NSObject,
                 NSApp.arrangeInFront(nil)
             }
         }
+
+        #if GHOSTTY_IDE
+        IDESocketServer.shared.start()
+        #endif
     }
 
     func applicationDidHide(_ notification: Notification) {
@@ -427,6 +431,10 @@ class AppDelegate: NSObject,
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        #if GHOSTTY_IDE
+        IDESocketServer.shared.stop()
+        #endif
+
         // We have no notifications we want to persist after death,
         // so remove them all now. In the future we may want to be
         // more selective and only remove surface-targeted notifications.

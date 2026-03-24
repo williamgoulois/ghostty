@@ -296,6 +296,7 @@
 		810ACCA02E9D3302004F8F92 /* GhosttyUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = GhosttyUITests; sourceTree = "<group>"; };
 		81F82BC72E82815D001EDFA7 /* Sources */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (81F82CB12E8281F9001EDFA7 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 81F82CB02E8281F5001EDFA7 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 8193245D2F24E80800A9ED8F /* PBXFileSystemSynchronizedBuildFileExceptionSet */, C1DE0000000000000000000A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Sources; sourceTree = "<group>"; };
 		A54F45F42E1F047A0046BD5C /* Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Tests; sourceTree = "<group>"; };
+		C1DE00000000000000000020 /* IDESources */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../ide/Sources; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -379,6 +380,7 @@
 				A51BFC282B30F26D00E92F16 /* GhosttyDebug.entitlements */,
 				3B39CAA42B33949B00DABEB8 /* GhosttyReleaseLocal.entitlements */,
 				81F82BC72E82815D001EDFA7 /* Sources */,
+				C1DE00000000000000000020 /* IDESources */,
 				A54F45F42E1F047A0046BD5C /* Tests */,
 				810ACCA02E9D3302004F8F92 /* GhosttyUITests */,
 				A5D495A3299BECBA00DD1313 /* Frameworks */,
@@ -494,6 +496,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				81F82BC72E82815D001EDFA7 /* Sources */,
+				C1DE00000000000000000020 /* IDESources */,
 			);
 			name = Ghostty;
 			packageProductDependencies = (
@@ -517,6 +520,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				81F82BC72E82815D001EDFA7 /* Sources */,
+				C1DE00000000000000000020 /* IDESources */,
 			);
 			name = "Ghostty-iOS";
 			productName = "Ghostty-iOS";
@@ -537,6 +541,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				81F82BC72E82815D001EDFA7 /* Sources */,
+				C1DE00000000000000000020 /* IDESources */,
 			);
 			name = GhosttyIDE;
 			packageProductDependencies = (
@@ -1495,6 +1500,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/macOS/ghostty-bridging-header.h";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = GHOSTTY_IDE;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -1549,6 +1555,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.ghosttyide.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = GHOSTTY_IDE;
 				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/macOS/ghostty-bridging-header.h";
 				SWIFT_VERSION = 5.0;
 			};
@@ -1604,6 +1611,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.ghosttyide.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = GHOSTTY_IDE;
 				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/macOS/ghostty-bridging-header.h";
 				SWIFT_VERSION = 5.0;
 			};
