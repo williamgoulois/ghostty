@@ -255,32 +255,28 @@ Tasks:
 
 ---
 
-## Phase 6: Command Palette
+## Phase 6: IDE Commands in Command Palette
 
-**Goal:** Cmd+Shift+P opens a fuzzy-search palette over all IDE commands. Anything the CLI can do, the palette can do.
+**Note:** Ghostty already has a production-ready command palette (Cmd+Shift+P) with fuzzy search, keyboard navigation, shortcuts display, and Siri/Shortcuts integration. Phase 6 extends it with IDE-specific commands rather than building from scratch.
 
-**Key design (from cmux):**
-- **Source of truth:** `CommandRouter.handlers.keys` — every registered socket command is a palette entry
-- **Fuzzy search** over command name + keywords
-- **Per-window state** — each window tracks its own palette visibility/selection
-- **Async search** — decouple typing from results to prevent lag
-- **Categories:** pane, project, notify, status, app, browser (future)
-- **Keyboard:** Cmd+Shift+P to toggle, arrow keys to navigate, Enter to execute, Esc to dismiss
+**Existing infrastructure (upstream Ghostty):**
+- `CommandPaletteView` — generic SwiftUI palette with filtering, keyboard nav, hover states
+- `TerminalCommandPaletteView` — builds options from config entries + jump commands + update commands
+- Toggle via `toggle_command_palette` action, default keybind Cmd+Shift+P
+
+**IDE extension approach:** Inject IDE commands into `TerminalCommandPaletteView.commandOptions` under `#if GHOSTTY_IDE`. Dynamic project entries (restore/delete) are built from saved projects on disk.
 
 ```
 ide/Sources/Palette/
-├── CommandPalette.swift         # SwiftUI overlay view
-├── PaletteStore.swift           # Command registry, search, selection state
-└── PaletteEntry.swift           # Model: id, title, keywords, category
+└── IDECommandPaletteOptions.swift  # Builds [CommandOption] from IDE state
 ```
 
 Tasks:
-- [ ] `PaletteEntry` model: id, title, keywords, category, argument schema
-- [ ] `PaletteStore`: registry from CommandRouter, fuzzy search, selection state
-- [ ] `CommandPalette` SwiftUI view: search field, scrollable results, keyboard navigation
-- [ ] Intercept Cmd+Shift+P in key event handling
-- [ ] Wire palette selection → socket command dispatch
-- [ ] Argument prompting for commands that need input (e.g., project name)
+- [x] Inject IDE commands into existing palette under `#if GHOSTTY_IDE`
+- [x] Dynamic project entries: Save, Restore — <name>, Delete — <name> per saved project
+- [x] NSAlert-based name prompt for "Project: Save Current"
+- [x] Static commands: Close All Windows, Clear Notifications, Clear Status
+- [x] Fix `UNUserNotificationCenter` delegate conflict (moved foreground handling to AppDelegate)
 
 ---
 

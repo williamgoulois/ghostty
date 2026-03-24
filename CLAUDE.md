@@ -65,6 +65,7 @@ cd macos && xcodebuild -scheme Ghostty -configuration Debug build
 - `ide/Sources/Workspace/WorkspaceManager.swift` — Bridge live app state to data model (save/restore)
 - `ide/Sources/Notifications/NotificationManager.swift` — macOS UNUserNotificationCenter bridge
 - `ide/Sources/Notifications/StatusStore.swift` — In-memory per-pane key-value status
+- `ide/Sources/Palette/IDECommandPaletteOptions.swift` — IDE commands injected into Ghostty's command palette
 - `ide/CLI/` — Standalone SPM package for the `ide` CLI binary
 - `ide/CLI/Sources/SocketClient.swift` — POSIX socket client (connect, send JSON, read response)
 - `ide/CLI/Sources/Commands/ProjectCommand.swift` — ide project save|restore|list|delete|close-all
