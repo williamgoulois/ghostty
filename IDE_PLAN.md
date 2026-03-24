@@ -187,9 +187,142 @@ Tasks:
 
 ---
 
-## Phase 5: WebKit Browser Panel
+## Phase 5: AI Agent Integration (Claude Code + OpenCode)
 
-**Goal:** Embed WKWebView as a split pane alongside terminals.
+**Goal:** First-class support for AI coding agents running inside GhosttyIDE panes. Notifications, status tracking, and environment injection — like cmux but native.
+
+### 5a: Environment injection
+
+Export to every shell spawned by GhosttyIDE:
+- `GHOSTTYIDE_SOCKET` — socket path
+- `GHOSTTYIDE_PANE_ID` — current surface UUID
+- `GHOSTTYIDE_WINDOW_ID` — window identifier
+
+Agents use these to send commands back to the IDE without manual socket discovery.
+
+### 5b: Notification system (socket + macOS)
+
+Socket commands:
+- `notify.send` — `{"title": "...", "body": "...", "pane_id": "..."}` → macOS `UNUserNotificationCenter`
+- `notify.list` — list recent notifications
+- `notify.clear` — clear all
+
+CLI: `ide notify "Title" --body "Body" [--pane <id>]`
+
+macOS system notifications only (no custom in-app UI yet — designed in Phase 7). Sound support (system sounds).
+
+### 5c: Status tracking
+
+Socket commands:
+- `status.set` — `{"key": "claude", "value": "Waiting for input", "pane_id": "..."}`
+- `status.clear` — remove a status key
+- `status.list` — all active statuses
+
+CLI: `ide status set <key> <value> [--pane <id>]`
+
+In-memory per-pane metadata (not persisted).
+
+### 5d: Agent integration patterns
+
+- Document how Claude Code hooks should call `ide notify` / `ide status set`
+- Document OpenCode plugin pattern
+- Provide example configs:
+  ```json
+  {"hooks": {"Notification": [{"matcher": "idle_prompt", "hooks": [{"type": "command", "command": "ide notify 'Claude Code' --body 'Waiting for input'"}]}]}}
+  ```
+
+```
+ide/Sources/Notifications/
+├── NotificationManager.swift    # UNUserNotificationCenter bridge
+└── StatusStore.swift            # In-memory per-pane status
+
+ide/Sources/Socket/Commands/
+├── NotifyCommands.swift         # notify.send, notify.list, notify.clear
+└── StatusCommands.swift         # status.set, status.clear, status.list
+
+ide/CLI/Sources/Commands/
+├── NotifyCommand.swift          # ide notify "Title" --body "Body"
+└── StatusCommand.swift          # ide status set|clear|list
+```
+
+Tasks:
+- [ ] Inject `GHOSTTYIDE_*` env vars into shell surfaces
+- [ ] `NotificationManager`: macOS notification center bridge
+- [ ] `StatusStore`: in-memory per-pane key-value status
+- [ ] Socket commands: `notify.send`, `notify.list`, `notify.clear`, `status.set`, `status.clear`, `status.list`
+- [ ] CLI commands: `ide notify`, `ide status`
+- [ ] Document Claude Code hooks + OpenCode plugin patterns
+
+---
+
+## Phase 6: Command Palette
+
+**Goal:** Cmd+Shift+P opens a fuzzy-search palette over all IDE commands. Anything the CLI can do, the palette can do.
+
+**Key design (from cmux):**
+- **Source of truth:** `CommandRouter.handlers.keys` — every registered socket command is a palette entry
+- **Fuzzy search** over command name + keywords
+- **Per-window state** — each window tracks its own palette visibility/selection
+- **Async search** — decouple typing from results to prevent lag
+- **Categories:** pane, project, notify, status, app, browser (future)
+- **Keyboard:** Cmd+Shift+P to toggle, arrow keys to navigate, Enter to execute, Esc to dismiss
+
+```
+ide/Sources/Palette/
+├── CommandPalette.swift         # SwiftUI overlay view
+├── PaletteStore.swift           # Command registry, search, selection state
+└── PaletteEntry.swift           # Model: id, title, keywords, category
+```
+
+Tasks:
+- [ ] `PaletteEntry` model: id, title, keywords, category, argument schema
+- [ ] `PaletteStore`: registry from CommandRouter, fuzzy search, selection state
+- [ ] `CommandPalette` SwiftUI view: search field, scrollable results, keyboard navigation
+- [ ] Intercept Cmd+Shift+P in key event handling
+- [ ] Wire palette selection → socket command dispatch
+- [ ] Argument prompting for commands that need input (e.g., project name)
+
+---
+
+## Phase 7: Visual & UX Design
+
+**Goal:** Design discussion phase (minimal code). Align on UI/UX for all visual elements before building polished implementations.
+
+**Topics to design:**
+1. **Notification panel** — Sidebar? Floating panel? Unread count? Jump-to-latest?
+2. **Status indicators** — Where do per-pane statuses appear? Title bar? Status bar? Inline overlay?
+3. **Command palette appearance** — Centered overlay (VS Code)? Top bar (Spotlight)? Sizing, animations?
+4. **Browser panel integration** — How does it sit in the split tree? URL bar design? Tab bar?
+5. **Overall visual language** — Dark/light theming, spacing, typography, animations
+
+**Deliverable:**
+- Design decisions captured in `DESIGN.md`
+- Implementation tasks generated for visual polish in subsequent phases
+
+Tasks:
+- [ ] Design notification panel UX
+- [ ] Design status indicator placement and appearance
+- [ ] Design command palette visual treatment
+- [ ] Design browser panel UX
+- [ ] Write `DESIGN.md` with decisions and mockups
+
+---
+
+## Phase 8: Keybindings & Config
+
+**Goal:** IDE-specific keybindings and configuration, layered on top of Ghostty's config.
+
+Tasks:
+- [ ] Add IDE-specific config file: `~/.config/ghosttyide/config` (loaded after Ghostty's config)
+- [ ] IDE-specific keybindings for: command palette, notifications, project switching, browser panel
+- [ ] Extend Ghostty's action system with IDE actions (or use a parallel keybind layer that intercepts before Ghostty)
+- [ ] Config hot-reload for IDE settings
+
+---
+
+## Phase 9: WebKit Browser Panel
+
+**Goal:** Embed WKWebView as a split pane alongside terminals. Last feature before polish.
 
 ```
 ide/Sources/Browser/
@@ -210,24 +343,13 @@ Tasks:
 
 ---
 
-## Phase 6: Extended Keybindings & Config
+## Phase 10: Polish & Hardening
 
-**Goal:** IDE-specific keybindings and configuration, layered on top of Ghostty's config.
-
-Tasks:
-- [ ] Add IDE-specific config file: `~/.config/ide/config` (loaded after Ghostty's config)
-- [ ] IDE-specific keybindings for: workspace switching, browser panel, socket commands
-- [ ] Extend Ghostty's action system with IDE actions (or use a parallel keybind layer that intercepts before Ghostty)
-- [ ] Config hot-reload for IDE settings
-
----
-
-## Phase 7: Polish & Hardening
-
-- [ ] Session persistence: save/restore terminal working directories and shell state
+- [ ] Auto-save on quit, auto-restore on launch
 - [ ] Error handling: socket disconnects, crashed panels, surface failures
 - [ ] Logging: unified debug log for IDE components
 - [ ] Documentation: CLI help, config reference, architecture guide
+- [ ] Implement visual designs from Phase 7 (notification panel, status indicators, etc.)
 - [ ] Strip unused Ghostty features from your build (QuickTerminal, Sparkle, AppIntents — optional, reduces surface area)
 
 ---
@@ -236,7 +358,7 @@ Tasks:
 
 1. `git fetch upstream && git rebase upstream/main`
 2. Conflicts should only appear in:
-   - `SplitTree.swift` (if you modified the leaf type — Phase 5)
+   - `SplitTree.swift` (if you modified the leaf type — Phase 9)
    - Xcode project file (if you added targets)
    - `AppDelegate.swift` (if you hooked socket server startup)
 3. Run build: `zig build ... && xcodebuild`
