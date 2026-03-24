@@ -64,7 +64,17 @@ struct TerminalCommandPaletteView: View {
         // Sort the rest. We replace ":" with a character that sorts before space
         // so that "Foo:" sorts before "Foo Bar:". Use sortKey as a tie-breaker
         // for stable ordering when titles are equal.
-        options.append(contentsOf: (jumpOptions + terminalOptions).sorted { a, b in
+        #if GHOSTTY_IDE
+        let ideOpts = IDECommandPaletteOptions.options(
+            onSaveProject: { self.handleProjectSave() },
+            onRestoreProject: { name in let _ = try? WorkspaceManager.shared.restore(name: name) },
+            onDeleteProject: { name in let _ = try? WorkspaceStore.shared.delete(name: name) }
+        )
+        #else
+        let ideOpts: [CommandOption] = []
+        #endif
+
+        options.append(contentsOf: (jumpOptions + terminalOptions + ideOpts).sorted { a, b in
             let aNormalized = a.title.replacingOccurrences(of: ":", with: "\t")
             let bNormalized = b.title.replacingOccurrences(of: ":", with: "\t")
             let comparison = aNormalized.localizedCaseInsensitiveCompare(bNormalized)
@@ -133,6 +143,26 @@ struct TerminalCommandPaletteView: View {
                 }
             }
     }
+
+    #if GHOSTTY_IDE
+    private func handleProjectSave() {
+        let alert = NSAlert()
+        alert.messageText = "Save Project"
+        alert.informativeText = "Enter a name for this project:"
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        input.placeholderString = "my-project"
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = input
+        if alert.runModal() == .alertFirstButtonReturn {
+            let name = input.stringValue.trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty {
+                let _ = try? WorkspaceManager.shared.save(name: name)
+            }
+        }
+    }
+    #endif
 
     /// Commands for jumping to other terminal surfaces.
     private var jumpOptions: [CommandOption] {

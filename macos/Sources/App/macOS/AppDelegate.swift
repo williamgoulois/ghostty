@@ -912,6 +912,14 @@ class AppDelegate: NSObject,
         willPresent: UNNotification,
         withCompletionHandler: (UNNotificationPresentationOptions) -> Void
     ) {
+        #if GHOSTTY_IDE
+        // IDE notifications (from NotificationManager) don't have a surface UUID.
+        // Always show them as banners in the foreground.
+        if willPresent.request.content.userInfo["surface"] == nil {
+            withCompletionHandler([.banner, .sound])
+            return
+        }
+        #endif
         let shouldPresent = ghostty.shouldPresentNotification(notification: willPresent)
         let options: UNNotificationPresentationOptions = shouldPresent ? [.banner, .sound] : []
         withCompletionHandler(options)

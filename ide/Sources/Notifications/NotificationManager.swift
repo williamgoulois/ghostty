@@ -2,7 +2,8 @@ import Foundation
 import UserNotifications
 
 /// Manages macOS system notifications for GhosttyIDE.
-final class NotificationManager: NSObject {
+/// Foreground presentation is handled by AppDelegate's UNUserNotificationCenterDelegate.
+final class NotificationManager {
     static let shared = NotificationManager()
 
     private var recentNotifications: [NotificationRecord] = []
@@ -19,7 +20,6 @@ final class NotificationManager: NSObject {
     /// Request notification permission. Call once at app launch.
     func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        UNUserNotificationCenter.current().delegate = self
     }
 
     /// Send a macOS system notification and store in recent list.
@@ -63,16 +63,5 @@ final class NotificationManager: NSObject {
     func clearAll() {
         recentNotifications.removeAll()
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-    }
-}
-
-// Show notifications even when app is in foreground.
-extension NotificationManager: UNUserNotificationCenterDelegate {
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner, .sound])
     }
 }
