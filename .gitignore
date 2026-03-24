@@ -29,3 +29,6 @@ glad.zip
 
 vgcore.*
 
+# IDE CLI (SPM)
+ide/CLI/.build/
+ide/CLI/Package.resolved

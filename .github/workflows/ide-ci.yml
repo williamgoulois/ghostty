@@ -30,6 +30,15 @@ jobs:
       - name: Test (core)
         run: zig build test
 
+  build-cli:
+    name: Build CLI
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build CLI
+        run: cd ide/CLI && swift build
+
   upstream-sync-check:
     name: Check upstream sync
     runs-on: macos-14

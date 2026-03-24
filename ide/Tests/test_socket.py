@@ -10,7 +10,9 @@ Tests connect to /tmp/ghosttyide.sock and exercise the command protocol.
 
 import json
 import os
+import shutil
 import socket
+import subprocess
 import sys
 
 SOCKET_PATH = "/tmp/ghosttyide.sock"
@@ -139,16 +141,85 @@ def test_pane_focus_nonexistent():
     assert "not found" in resp["error"].lower()
 
 
+# --- CLI tests (require `swift build` in ide/CLI first) ---
+
+CLI_DIR = os.path.join(os.path.dirname(__file__), "..", "CLI")
+CLI_BIN = None
+
+
+def find_cli_binary():
+    """Find the built CLI binary."""
+    global CLI_BIN
+    # Check if swift run is available
+    candidate = os.path.join(CLI_DIR, ".build", "debug", "ide")
+    if os.path.isfile(candidate):
+        CLI_BIN = candidate
+        return True
+    return False
+
+
+def run_cli(*args: str) -> subprocess.CompletedProcess:
+    """Run the CLI binary with given arguments."""
+    return subprocess.run(
+        [CLI_BIN] + list(args),
+        capture_output=True, text=True, timeout=10,
+    )
+
+
+def test_cli_help():
+    r = run_cli("--help")
+    assert r.returncode == 0, f"Exit code {r.returncode}"
+    assert "ide" in r.stdout
+    assert "pane" in r.stdout
+
+
+def test_cli_app_version():
+    r = run_cli("app", "version")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "GhosttyIDE" in r.stdout
+
+
+def test_cli_app_version_json():
+    r = run_cli("app", "version", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert "version" in data["data"]
+
+
+def test_cli_pane_list():
+    r = run_cli("pane", "list")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+
+
+def test_cli_commands():
+    r = run_cli("commands")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "pane.list" in r.stdout
+
+
+def test_cli_raw():
+    r = run_cli("raw", "app.pid", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+
+
+def test_cli_error_exit_code():
+    r = run_cli("pane", "focus", "bad-uuid")
+    assert r.returncode != 0, "Expected non-zero exit code for invalid UUID"
+
+
 if __name__ == "__main__":
     # Check socket exists
     if not os.path.exists(SOCKET_PATH):
-        # Try PID-specific path
         print(f"Socket not found at {SOCKET_PATH}")
         print("Is GhosttyIDE running? Launch it first.")
         sys.exit(1)
 
     print(f"Testing socket at {SOCKET_PATH}\n")
 
+    print("--- Socket protocol tests ---")
     test("help", test_help)
     test("app.version", test_app_version)
     test("app.pid", test_app_pid)
@@ -159,6 +230,18 @@ if __name__ == "__main__":
     test("pane.focus missing id", test_pane_focus_missing_id)
     test("pane.close bad id", test_pane_close_bad_id)
     test("pane.focus nonexistent", test_pane_focus_nonexistent)
+
+    print("\n--- CLI tests ---")
+    if find_cli_binary():
+        test("cli --help", test_cli_help)
+        test("cli app version", test_cli_app_version)
+        test("cli app version --json", test_cli_app_version_json)
+        test("cli pane list", test_cli_pane_list)
+        test("cli commands", test_cli_commands)
+        test("cli raw", test_cli_raw)
+        test("cli error exit code", test_cli_error_exit_code)
+    else:
+        print("  SKIP  CLI not built (run: cd ide/CLI && swift build)")
 
     print(f"\n{'='*40}")
     print(f"Results: {passed} passed, {failed} failed")
