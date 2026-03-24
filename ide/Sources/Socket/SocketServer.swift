@@ -8,7 +8,7 @@ final class IDESocketServer {
 
     private let logger = Logger(subsystem: "com.ghosttyide", category: "SocketServer")
     private var serverFD: Int32 = -1
-    private var socketPath: String = ""
+    private(set) var socketPath: String = ""
     private var running = false
     private let router = IDECommandRouter()
     private let acceptQueue = DispatchQueue(label: "com.ghosttyide.socket.accept", qos: .userInitiated)

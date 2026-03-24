@@ -340,6 +340,7 @@ class AppDelegate: NSObject,
 
         #if GHOSTTY_IDE
         IDESocketServer.shared.start()
+        NotificationManager.shared.requestPermission()
         #endif
     }
 

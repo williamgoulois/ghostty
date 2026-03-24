@@ -390,7 +390,14 @@ extension Ghostty {
             ) { [weak self] event in self?.localEventHandler(event) }
 
             // Setup our surface. This will also initialize all the terminal IO.
-            let surface_cfg = baseConfig ?? SurfaceConfiguration()
+            var surface_cfg = baseConfig ?? SurfaceConfiguration()
+#if GHOSTTY_IDE
+            surface_cfg.environmentVariables["GHOSTTYIDE_SOCKET"] = IDESocketServer.shared.socketPath
+            surface_cfg.environmentVariables["GHOSTTYIDE_PANE_ID"] = id.uuidString
+            if let windowNumber = self.window?.windowNumber {
+                surface_cfg.environmentVariables["GHOSTTYIDE_WINDOW_ID"] = "\(windowNumber)"
+            }
+#endif
             let surface = surface_cfg.withCValue(view: self) { surface_cfg_c in
                 ghostty_surface_new(app, &surface_cfg_c)
             }

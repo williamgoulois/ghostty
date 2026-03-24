@@ -8,6 +8,8 @@ final class IDECommandRouter {
         registerAppCommands()
         registerPaneCommands()
         registerWorkspaceCommands()
+        registerNotifyCommands()
+        registerStatusCommands()
     }
 
     func register(_ command: String, handler: @escaping (IDECommand) -> IDEResponse) {

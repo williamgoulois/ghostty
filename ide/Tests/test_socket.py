@@ -64,7 +64,9 @@ def test_help():
     assert isinstance(commands, list), f"Expected list, got {type(commands)}"
     for required in ["help", "app.version", "app.pid", "pane.list", "pane.split",
                       "project.save", "project.restore", "project.list", "project.delete",
-                      "project.close-all"]:
+                      "project.close-all",
+                      "notify.send", "notify.list", "notify.clear",
+                      "status.set", "status.clear", "status.list"]:
         assert required in commands, f"Missing command: {required}"
 
 
@@ -213,6 +215,135 @@ def test_project_delete_not_found():
     assert "not found" in resp["error"].lower()
 
 
+# --- Notify tests ---
+
+
+def test_notify_send():
+    resp = send_command({"command": "notify.send", "args": {"title": "Test Notification", "body": "Hello from tests"}})
+    assert_eq(resp["ok"], True)
+    assert "notification_id" in resp["data"], "Missing 'notification_id' key"
+    assert resp["data"]["title"] == "Test Notification"
+
+
+def test_notify_send_title_only():
+    resp = send_command({"command": "notify.send", "args": {"title": "Title Only"}})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["title"], "Title Only")
+
+
+def test_notify_send_with_pane():
+    resp = send_command({"command": "notify.send", "args": {"title": "Pane Test", "pane_id": "00000000-0000-0000-0000-000000000000"}})
+    assert_eq(resp["ok"], True)
+
+
+def test_notify_send_missing_title():
+    resp = send_command({"command": "notify.send"})
+    assert_eq(resp["ok"], False)
+    assert "title" in resp["error"].lower()
+
+
+def test_notify_send_empty_title():
+    resp = send_command({"command": "notify.send", "args": {"title": ""}})
+    assert_eq(resp["ok"], False)
+
+
+def test_notify_list():
+    # Should have at least the notifications we just sent
+    resp = send_command({"command": "notify.list"})
+    assert_eq(resp["ok"], True)
+    notifications = resp["data"]["notifications"]
+    assert isinstance(notifications, list), f"Expected list, got {type(notifications)}"
+    assert len(notifications) >= 1, "Expected at least 1 notification from prior test"
+    n = notifications[-1]
+    for key in ["id", "title", "body", "timestamp"]:
+        assert key in n, f"Missing key '{key}' in notification"
+
+
+def test_notify_clear():
+    resp = send_command({"command": "notify.clear"})
+    assert_eq(resp["ok"], True)
+    # Verify list is now empty
+    resp2 = send_command({"command": "notify.list"})
+    assert_eq(len(resp2["data"]["notifications"]), 0)
+
+
+# --- Status tests ---
+
+
+def test_status_set():
+    resp = send_command({"command": "status.set", "args": {"key": "agent", "value": "idle", "pane_id": "test-pane-1"}})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["key"], "agent")
+    assert_eq(resp["data"]["value"], "idle")
+    assert_eq(resp["data"]["pane_id"], "test-pane-1")
+
+
+def test_status_set_another():
+    resp = send_command({"command": "status.set", "args": {"key": "build", "value": "running", "pane_id": "test-pane-2"}})
+    assert_eq(resp["ok"], True)
+
+
+def test_status_set_overwrite():
+    # Set initial value
+    send_command({"command": "status.set", "args": {"key": "agent", "value": "idle", "pane_id": "test-pane-1"}})
+    # Overwrite with new value
+    resp = send_command({"command": "status.set", "args": {"key": "agent", "value": "working", "pane_id": "test-pane-1"}})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["value"], "working")
+    # Verify only one entry exists for this key
+    resp2 = send_command({"command": "status.list", "args": {"pane_id": "test-pane-1"}})
+    statuses = resp2["data"]["statuses"]
+    agent_entries = [s for s in statuses if s["key"] == "agent"]
+    assert_eq(len(agent_entries), 1, "Expected exactly 1 agent entry after overwrite, ")
+    assert_eq(agent_entries[0]["value"], "working")
+
+
+def test_status_set_missing_key():
+    resp = send_command({"command": "status.set", "args": {"value": "idle"}})
+    assert_eq(resp["ok"], False)
+    assert "key" in resp["error"].lower()
+
+
+def test_status_set_missing_value():
+    resp = send_command({"command": "status.set", "args": {"key": "agent"}})
+    assert_eq(resp["ok"], False)
+    assert "value" in resp["error"].lower()
+
+
+def test_status_list():
+    resp = send_command({"command": "status.list"})
+    assert_eq(resp["ok"], True)
+    statuses = resp["data"]["statuses"]
+    assert isinstance(statuses, list), f"Expected list, got {type(statuses)}"
+    assert len(statuses) >= 2, f"Expected at least 2 statuses, got {len(statuses)}"
+    for s in statuses:
+        for key in ["key", "value", "pane_id", "updated_at"]:
+            assert key in s, f"Missing key '{key}' in status"
+
+
+def test_status_list_filtered():
+    resp = send_command({"command": "status.list", "args": {"pane_id": "test-pane-1"}})
+    assert_eq(resp["ok"], True)
+    statuses = resp["data"]["statuses"]
+    assert len(statuses) == 1, f"Expected 1 status for test-pane-1, got {len(statuses)}"
+    assert_eq(statuses[0]["key"], "agent")
+
+
+def test_status_clear_specific():
+    resp = send_command({"command": "status.clear", "args": {"pane_id": "test-pane-1", "key": "agent"}})
+    assert_eq(resp["ok"], True)
+    # Verify it's gone
+    resp2 = send_command({"command": "status.list", "args": {"pane_id": "test-pane-1"}})
+    assert_eq(len(resp2["data"]["statuses"]), 0)
+
+
+def test_status_clear_all():
+    resp = send_command({"command": "status.clear"})
+    assert_eq(resp["ok"], True)
+    resp2 = send_command({"command": "status.list"})
+    assert_eq(len(resp2["data"]["statuses"]), 0)
+
+
 # --- CLI tests (require `swift build` in ide/CLI first) ---
 
 CLI_DIR = os.path.join(os.path.dirname(__file__), "..", "CLI")
@@ -317,6 +448,62 @@ def test_cli_project_delete():
     assert "Deleted" in r.stdout
 
 
+def test_cli_notify_send():
+    r = run_cli("notify", "send", "CLI Test", "--body", "Hello from CLI")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Notification sent" in r.stdout
+
+
+def test_cli_notify_list():
+    r = run_cli("notify", "list", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert "notifications" in data["data"]
+
+
+def test_cli_notify_clear():
+    r = run_cli("notify", "clear")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "cleared" in r.stdout.lower()
+
+
+def test_cli_notify_send_with_pane():
+    r = run_cli("notify", "send", "Pane CLI", "--body", "With pane", "--pane", "cli-pane-1")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Notification sent" in r.stdout
+
+
+def test_cli_status_set():
+    r = run_cli("status", "set", "test_key", "test_value", "--pane", "cli-test-pane")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Status set" in r.stdout
+
+
+def test_cli_status_list():
+    r = run_cli("status", "list", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert "statuses" in data["data"]
+
+
+def test_cli_status_list_filtered():
+    r = run_cli("status", "list", "--pane", "cli-test-pane", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    statuses = data["data"]["statuses"]
+    assert len(statuses) >= 1, f"Expected at least 1 status for cli-test-pane"
+    assert all(s["pane_id"] == "cli-test-pane" for s in statuses), "Expected all statuses to be for cli-test-pane"
+
+
+def test_cli_status_clear():
+    r = run_cli("status", "clear")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "cleared" in r.stdout.lower()
+
+
 if __name__ == "__main__":
     # Check socket exists
     if not os.path.exists(SOCKET_PATH):
@@ -350,6 +537,26 @@ if __name__ == "__main__":
     test("project.restore not found", test_project_restore_not_found)
     test("project.delete not found", test_project_delete_not_found)
 
+    print("\n--- Notify tests ---")
+    test("notify.send", test_notify_send)
+    test("notify.send title only", test_notify_send_title_only)
+    test("notify.send with pane", test_notify_send_with_pane)
+    test("notify.send missing title", test_notify_send_missing_title)
+    test("notify.send empty title", test_notify_send_empty_title)
+    test("notify.list", test_notify_list)
+    test("notify.clear", test_notify_clear)
+
+    print("\n--- Status tests ---")
+    test("status.set", test_status_set)
+    test("status.set another", test_status_set_another)
+    test("status.set overwrite", test_status_set_overwrite)
+    test("status.set missing key", test_status_set_missing_key)
+    test("status.set missing value", test_status_set_missing_value)
+    test("status.list", test_status_list)
+    test("status.list filtered", test_status_list_filtered)
+    test("status.clear specific", test_status_clear_specific)
+    test("status.clear all", test_status_clear_all)
+
     print("\n--- CLI tests ---")
     if find_cli_binary():
         test("cli --help", test_cli_help)
@@ -364,6 +571,14 @@ if __name__ == "__main__":
         test("cli project list", test_cli_project_list)
         test("cli project list --json", test_cli_project_list_json)
         test("cli project delete", test_cli_project_delete)
+        test("cli notify send", test_cli_notify_send)
+        test("cli notify send --pane", test_cli_notify_send_with_pane)
+        test("cli notify list --json", test_cli_notify_list)
+        test("cli notify clear", test_cli_notify_clear)
+        test("cli status set", test_cli_status_set)
+        test("cli status list --json", test_cli_status_list)
+        test("cli status list --pane", test_cli_status_list_filtered)
+        test("cli status clear", test_cli_status_clear)
     else:
         print("  SKIP  CLI not built (run: cd ide/CLI && swift build)")
 
