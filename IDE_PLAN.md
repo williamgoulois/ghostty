@@ -133,25 +133,57 @@ Tasks:
 
 ---
 
-## Phase 4: Workspace Model
+## Phase 4: Project Save/Restore
 
-**Goal:** Named workspaces with layout persistence (tabs, splits, browser panels).
+**Goal:** Named projects with layout persistence. A project = all windows saved as a group.
 
+**Data model hierarchy:**
+```
+GhosttyIDE.app (1 process)
+├── Project "myproject" (= all windows, saved/restored as a group)
+│   ├── Window 1 (future: named workspace)
+│   │   ├── Pane A (zsh, ~/project)
+│   │   └── Pane B (vim, ~/project/src)
+│   └── Window 2
+│       └── Pane C (zsh, ~/project/ide)
+```
+
+**Storage:** tmux resurrect pattern at `~/.cache/ghosttyide/projects/`
+```
+~/.cache/ghosttyide/projects/
+├── myproject -> myproject_20260324T143810.json   # symlink to latest
+├── myproject_20260324T143810.json                # timestamped save
+├── myproject_20260324T120000.json                # previous save (kept)
+```
+
+**Implementation:**
 ```
 ide/Sources/Workspace/
-├── Workspace.swift               # Workspace state: name, layout tree, metadata
-├── WorkspaceManager.swift        # Create, switch, list, save/restore
-├── LayoutPersistence.swift       # Serialize/deserialize split tree + panel types
-└── WorkspaceStore.swift          # Disk storage (~/.config/ide/workspaces/)
+├── Workspace.swift          # ProjectFile, ProjectWindowState, PaneSummary
+├── WorkspaceStore.swift     # Disk I/O (timestamped files + symlinks)
+└── WorkspaceManager.swift   # Bridge live app state ↔ data model
+
+ide/Sources/Socket/Commands/
+└── WorkspaceCommands.swift  # project.* socket commands
+
+ide/CLI/Sources/Commands/
+└── ProjectCommand.swift     # ide project save|restore|list|delete|close-all
 ```
 
+Key insight: Ghostty's `SplitTree<SurfaceView>` is fully Codable. `SurfaceView.init(from:)` creates
+real surfaces with decoded pwd. We serialize to JSON files instead of NSCoder.
+
 Tasks:
-- [ ] Define `Workspace` model: name, split tree snapshot, per-pane metadata (type, cwd, url)
-- [ ] `WorkspaceManager`: in-memory state, current workspace tracking
-- [ ] Serialize layout to JSON: tree structure + node type (terminal vs browser) + properties
-- [ ] Restore layout: recreate surfaces and panels from saved state
-- [ ] Wire into socket commands: `workspace.save`, `workspace.restore`, `workspace.list`
-- [ ] Auto-save on quit, auto-restore on launch (opt-in config)
+- [x] Define `ProjectFile` model: version, name, windows array with split tree + pane metadata
+- [x] `WorkspaceStore`: disk I/O with timestamped files + symlinks
+- [x] `WorkspaceManager`: capture window state, restore via `TerminalController.newWindow(_:tree:)`
+- [x] Socket commands: `project.save`, `project.restore`, `project.list`, `project.delete`, `project.close-all`
+- [x] CLI commands: `ide project save|restore|list|delete|close-all`
+- [ ] Auto-save on quit, auto-restore on launch (deferred)
+
+**Future evolution** (data model supports from day 1):
+- Project switching: `project.switch` hides/shows window groups without closing
+- Per-window naming: optional `name` field in `ProjectWindowState` for workspace identity
 
 ---
 

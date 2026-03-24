@@ -62,7 +62,9 @@ def test_help():
     assert_eq(resp["ok"], True)
     commands = resp["data"]["commands"]
     assert isinstance(commands, list), f"Expected list, got {type(commands)}"
-    for required in ["help", "app.version", "app.pid", "pane.list", "pane.split"]:
+    for required in ["help", "app.version", "app.pid", "pane.list", "pane.split",
+                      "project.save", "project.restore", "project.list", "project.delete",
+                      "project.close-all"]:
         assert required in commands, f"Missing command: {required}"
 
 
@@ -141,6 +143,76 @@ def test_pane_focus_nonexistent():
     assert "not found" in resp["error"].lower()
 
 
+# --- Project tests ---
+
+TEMP_PROJECT = "_test_project_"
+
+
+def test_project_save():
+    resp = send_command({"command": "project.save", "args": {"name": TEMP_PROJECT}})
+    assert_eq(resp["ok"], True)
+    assert "windows" in resp["data"], "Missing 'windows' key"
+    assert "panes" in resp["data"], "Missing 'panes' key"
+    assert "saved_at" in resp["data"], "Missing 'saved_at' key"
+    assert resp["data"]["windows"] >= 1, "Expected at least 1 window"
+
+
+def test_project_list():
+    resp = send_command({"command": "project.list"})
+    assert_eq(resp["ok"], True)
+    projects = resp["data"]["projects"]
+    assert isinstance(projects, list), f"Expected list, got {type(projects)}"
+    names = [p["name"] for p in projects]
+    assert TEMP_PROJECT in names, f"Saved project not found in list: {names}"
+
+
+def test_project_restore():
+    resp = send_command({"command": "project.restore", "args": {"name": TEMP_PROJECT}})
+    assert_eq(resp["ok"], True)
+    assert resp["data"]["windows_created"] >= 1, "Expected at least 1 window created"
+
+
+def test_project_delete():
+    resp = send_command({"command": "project.delete", "args": {"name": TEMP_PROJECT}})
+    assert_eq(resp["ok"], True)
+    # Verify it's gone
+    resp2 = send_command({"command": "project.list"})
+    names = [p["name"] for p in resp2["data"]["projects"]]
+    assert TEMP_PROJECT not in names, f"Project still in list after delete: {names}"
+
+
+def test_project_save_missing_name():
+    resp = send_command({"command": "project.save"})
+    assert_eq(resp["ok"], False)
+
+
+def test_project_save_empty_name():
+    resp = send_command({"command": "project.save", "args": {"name": ""}})
+    assert_eq(resp["ok"], False)
+
+
+def test_project_save_invalid_name():
+    resp = send_command({"command": "project.save", "args": {"name": "bad/name"}})
+    assert_eq(resp["ok"], False)
+
+
+def test_project_save_invalid_name_spaces():
+    resp = send_command({"command": "project.save", "args": {"name": "bad name"}})
+    assert_eq(resp["ok"], False)
+
+
+def test_project_restore_not_found():
+    resp = send_command({"command": "project.restore", "args": {"name": "nonexistent_project_xyz"}})
+    assert_eq(resp["ok"], False)
+    assert "not found" in resp["error"].lower()
+
+
+def test_project_delete_not_found():
+    resp = send_command({"command": "project.delete", "args": {"name": "nonexistent_project_xyz"}})
+    assert_eq(resp["ok"], False)
+    assert "not found" in resp["error"].lower()
+
+
 # --- CLI tests (require `swift build` in ide/CLI first) ---
 
 CLI_DIR = os.path.join(os.path.dirname(__file__), "..", "CLI")
@@ -210,6 +282,41 @@ def test_cli_error_exit_code():
     assert r.returncode != 0, "Expected non-zero exit code for invalid UUID"
 
 
+def test_cli_project_save():
+    r = run_cli("project", "save", TEMP_PROJECT)
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Saved project" in r.stdout
+
+
+def test_cli_project_save_json():
+    r = run_cli("project", "save", TEMP_PROJECT, "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert "windows" in data["data"]
+    assert "panes" in data["data"]
+
+
+def test_cli_project_list():
+    r = run_cli("project", "list")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert TEMP_PROJECT in r.stdout
+
+
+def test_cli_project_list_json():
+    r = run_cli("project", "list", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert "projects" in data["data"]
+
+
+def test_cli_project_delete():
+    r = run_cli("project", "delete", TEMP_PROJECT)
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Deleted" in r.stdout
+
+
 if __name__ == "__main__":
     # Check socket exists
     if not os.path.exists(SOCKET_PATH):
@@ -231,6 +338,18 @@ if __name__ == "__main__":
     test("pane.close bad id", test_pane_close_bad_id)
     test("pane.focus nonexistent", test_pane_focus_nonexistent)
 
+    print("\n--- Project tests ---")
+    test("project.save", test_project_save)
+    test("project.list", test_project_list)
+    test("project.restore", test_project_restore)
+    test("project.delete", test_project_delete)
+    test("project.save missing name", test_project_save_missing_name)
+    test("project.save empty name", test_project_save_empty_name)
+    test("project.save invalid name", test_project_save_invalid_name)
+    test("project.save invalid name spaces", test_project_save_invalid_name_spaces)
+    test("project.restore not found", test_project_restore_not_found)
+    test("project.delete not found", test_project_delete_not_found)
+
     print("\n--- CLI tests ---")
     if find_cli_binary():
         test("cli --help", test_cli_help)
@@ -240,8 +359,17 @@ if __name__ == "__main__":
         test("cli commands", test_cli_commands)
         test("cli raw", test_cli_raw)
         test("cli error exit code", test_cli_error_exit_code)
+        test("cli project save", test_cli_project_save)
+        test("cli project save --json", test_cli_project_save_json)
+        test("cli project list", test_cli_project_list)
+        test("cli project list --json", test_cli_project_list_json)
+        test("cli project delete", test_cli_project_delete)
     else:
         print("  SKIP  CLI not built (run: cd ide/CLI && swift build)")
+
+    # close-all kills the app (macOS quits when last window closes), so run last
+    print("\n--- Destructive tests (close-all) ---")
+    print("  SKIP  project.close-all (closes all windows, app may quit)")
 
     print(f"\n{'='*40}")
     print(f"Results: {passed} passed, {failed} failed")

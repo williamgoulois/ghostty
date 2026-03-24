@@ -57,9 +57,14 @@ cd macos && xcodebuild -scheme Ghostty -configuration Debug build
 - `ide/Sources/Socket/CommandProtocol.swift` — Command/response types with AnyCodable
 - `ide/Sources/Socket/Commands/PaneCommands.swift` — pane.list, pane.split, pane.focus, pane.close
 - `ide/Sources/Socket/Commands/AppCommands.swift` — app.version, app.pid, app.quit, help
+- `ide/Sources/Socket/Commands/WorkspaceCommands.swift` — project.save, project.restore, project.list, project.delete, project.close-all
+- `ide/Sources/Workspace/Workspace.swift` — ProjectFile, ProjectWindowState, PaneSummary data model
+- `ide/Sources/Workspace/WorkspaceStore.swift` — Disk I/O with timestamped files + symlinks
+- `ide/Sources/Workspace/WorkspaceManager.swift` — Bridge live app state to data model (save/restore)
 - `ide/CLI/` — Standalone SPM package for the `ide` CLI binary
 - `ide/CLI/Sources/SocketClient.swift` — POSIX socket client (connect, send JSON, read response)
-- `ide/Tests/test_socket.py` — Integration tests (socket protocol + CLI)
+- `ide/CLI/Sources/Commands/ProjectCommand.swift` — ide project save|restore|list|delete|close-all
+- `ide/Tests/test_socket.py` — Integration tests (socket protocol + CLI + project)
 
 ## CLI Usage
 
@@ -70,8 +75,24 @@ cd ide/CLI && swift build
 # Run (from ide/CLI directory)
 swift run ide pane list
 swift run ide app version --json
+swift run ide project save myproject
+swift run ide project list
+swift run ide project restore myproject
+swift run ide project close-all
 swift run ide raw <command> -a key=value
 
 # Or run the built binary directly
 ide/CLI/.build/debug/ide pane list
+```
+
+## Testing
+
+```bash
+# Integration tests (requires GhosttyIDE running + CLI built)
+python3 ide/Tests/test_socket.py
+
+# Tests cover:
+# - Socket protocol (10 tests): help, app.version, app.pid, pane.list, error cases
+# - Project save/restore (12 tests): save, list, restore, close-all, delete, name validation
+# - CLI (13 tests): help, app, pane, project, raw, --json output, error exit codes
 ```

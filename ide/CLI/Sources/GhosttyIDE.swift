@@ -9,6 +9,7 @@ struct GhosttyIDE: ParsableCommand {
         subcommands: [
             Pane.self,
             App.self,
+            Project.self,
             Help_.self,
             Raw.self,
         ],
