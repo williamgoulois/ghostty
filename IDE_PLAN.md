@@ -89,32 +89,47 @@ Tasks:
 
 **Goal:** A standalone CLI that talks to the socket. Every IDE action is a CLI command.
 
+Implemented as a standalone SPM package (not an Xcode target) since the CLI only needs socket communication, no Ghostty/AppKit dependencies.
+
 ```
-ide/Sources/CLI/
-├── main.swift                    # Entry point, argument parsing
-├── SocketClient.swift            # Connect to socket, send/receive JSON
-└── Commands/                     # ArgumentParser command definitions
-    ├── PaneCommand.swift
-    ├── WorkspaceCommand.swift
-    ├── BrowserCommand.swift
-    └── TerminalCommand.swift
+ide/CLI/                              # Standalone SPM package
+├── Package.swift                     # swift-argument-parser dependency
+└── Sources/
+    ├── GhosttyIDE.swift              # @main entry point, global options
+    ├── SocketClient.swift            # POSIX Unix socket client
+    ├── Output.swift                  # JSON + plain-text formatters
+    └── Commands/
+        ├── PaneCommand.swift         # pane list|split|focus|close
+        ├── AppCommand.swift          # app version|pid|quit
+        ├── HelpCommand.swift         # commands (list server commands)
+        └── RawCommand.swift          # raw <cmd> -a key=value
+```
+
+Build & run:
+```bash
+cd ide/CLI && swift build
+swift run ide pane list
+swift run ide app version --json
+swift run ide raw app.pid --json
 ```
 
 Tasks:
-- [ ] Create CLI target using Swift ArgumentParser
-- [ ] Implement `SocketClient` — connect, send command, read response, print
-- [ ] Map CLI subcommands to socket commands:
+- [x] Create CLI target using Swift ArgumentParser
+- [x] Implement `SocketClient` — connect, send command, read response, print
+- [x] Map CLI subcommands to socket commands:
   ```
   ide pane split --direction right
   ide pane list
-  ide pane focus --id abc-123
-  ide terminal send-keys --pane abc-123 "ls -la"
-  ide workspace save mysetup
-  ide workspace restore mysetup
-  ide browser open https://docs.example.com
+  ide pane focus <uuid>
+  ide pane close <uuid>
+  ide app version
+  ide app pid
+  ide app quit
+  ide commands                    # list all server commands
+  ide raw <command> -a key=value  # send arbitrary commands
   ```
-- [ ] Socket path discovery: check `/tmp/ide.sock`, env var `IDE_SOCKET`, or `--socket` flag
-- [ ] JSON and plain-text output modes (`--json` flag)
+- [x] Socket path discovery: check `/tmp/ghosttyide.sock`, env var `GHOSTTYIDE_SOCKET`, or `--socket` flag
+- [x] JSON and plain-text output modes (`--json` flag)
 
 ---
 

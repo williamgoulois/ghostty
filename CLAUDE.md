@@ -49,3 +49,29 @@ cd macos && xcodebuild -scheme Ghostty -configuration Debug build
 - `macos/Sources/Features/Terminal/TerminalController.swift` — Window management
 - `macos/Sources/Features/Terminal/BaseTerminalController.swift` — Base controller with split/focus logic
 - `macos/Sources/App/macOS/AppDelegate.swift` — App lifecycle, menu, notifications
+
+## Key Files (IDE additions)
+
+- `ide/Sources/Socket/SocketServer.swift` — POSIX Unix socket listener on `/tmp/ghosttyide.sock`
+- `ide/Sources/Socket/CommandRouter.swift` — JSON command dispatch
+- `ide/Sources/Socket/CommandProtocol.swift` — Command/response types with AnyCodable
+- `ide/Sources/Socket/Commands/PaneCommands.swift` — pane.list, pane.split, pane.focus, pane.close
+- `ide/Sources/Socket/Commands/AppCommands.swift` — app.version, app.pid, app.quit, help
+- `ide/CLI/` — Standalone SPM package for the `ide` CLI binary
+- `ide/CLI/Sources/SocketClient.swift` — POSIX socket client (connect, send JSON, read response)
+- `ide/Tests/test_socket.py` — Integration tests (socket protocol + CLI)
+
+## CLI Usage
+
+```bash
+# Build CLI
+cd ide/CLI && swift build
+
+# Run (from ide/CLI directory)
+swift run ide pane list
+swift run ide app version --json
+swift run ide raw <command> -a key=value
+
+# Or run the built binary directly
+ide/CLI/.build/debug/ide pane list
+```
