@@ -1,0 +1,54 @@
+name: IDE CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-zig:
+    name: Build Zig (no macOS app)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - name: Build
+        run: zig build -Demit-macos-app=false
+
+      - name: Test (core)
+        run: zig build test
+
+  upstream-sync-check:
+    name: Check upstream sync
+    runs-on: macos-14
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/ghostty-org/ghostty.git
+
+      - name: Fetch upstream
+        run: git fetch upstream main
+
+      - name: Check commits behind
+        run: |
+          BEHIND=$(git rev-list --count HEAD..upstream/main)
+          echo "Commits behind upstream: $BEHIND"
+          if [ "$BEHIND" -gt 100 ]; then
+            echo "::warning::Fork is $BEHIND commits behind upstream. Consider rebasing."
+          fi
