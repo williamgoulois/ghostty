@@ -28,6 +28,22 @@
 		A5B30539299BEAAB0047F10C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A5B30538299BEAAB0047F10C /* Assets.xcassets */; };
 		FC5218FA2D10FFCE004C93E0 /* zsh in Resources */ = {isa = PBXBuildFile; fileRef = FC5218F92D10FFC7004C93E0 /* zsh */; };
 		FC9ABA9C2D0F53F80020D4C8 /* bash-completion in Resources */ = {isa = PBXBuildFile; fileRef = FC9ABA9B2D0F538D0020D4C8 /* bash-completion */; };
+		C1DE0000000000000000000B /* GhosttyKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A5D495A1299BEC7E00DD1313 /* GhosttyKit.xcframework */; };
+		C1DE0000000000000000000C /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A56B880A2A840447007A0E29 /* Carbon.framework */; };
+		C1DE0000000000000000000D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = C1DE0000000000000000000F /* Sparkle */; };
+		C1DE0000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A5B30538299BEAAB0047F10C /* Assets.xcassets */; };
+		C1DE00000000000000000010 /* bash-completion in Resources */ = {isa = PBXBuildFile; fileRef = FC9ABA9B2D0F538D0020D4C8 /* bash-completion */; };
+		C1DE00000000000000000011 /* bat in Resources */ = {isa = PBXBuildFile; fileRef = 29C15B1C2CDC3B2000520DD4 /* bat */; };
+		C1DE00000000000000000012 /* fish in Resources */ = {isa = PBXBuildFile; fileRef = A586167B2B7703CC009BDB1D /* fish */; };
+		C1DE00000000000000000013 /* ghostty in Resources */ = {isa = PBXBuildFile; fileRef = 55154BDF2B33911F001622DC /* ghostty */; };
+		C1DE00000000000000000014 /* locale in Resources */ = {isa = PBXBuildFile; fileRef = A546F1132D7B68D7003B11A0 /* locale */; };
+		C1DE00000000000000000015 /* man in Resources */ = {isa = PBXBuildFile; fileRef = A5985CE52C33060F00C57AD3 /* man */; };
+		C1DE00000000000000000016 /* nvim in Resources */ = {isa = PBXBuildFile; fileRef = 9351BE8E2D22937F003B3499 /* nvim */; };
+		C1DE00000000000000000017 /* terminfo in Resources */ = {isa = PBXBuildFile; fileRef = A5A1F8842A489D6800D1E8BC /* terminfo */; };
+		C1DE00000000000000000018 /* vim in Resources */ = {isa = PBXBuildFile; fileRef = 552964E52B34A9B400030505 /* vim */; };
+		C1DE00000000000000000019 /* zsh in Resources */ = {isa = PBXBuildFile; fileRef = FC5218F92D10FFC7004C93E0 /* zsh */; };
+		C1DE0000000000000000001A /* Ghostty.icon in Resources */ = {isa = PBXBuildFile; fileRef = A553F4122E06EB1600257779 /* Ghostty.icon */; };
+		C1DE0000000000000000001B /* Ghostty.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 8F3A9B4B2FA6B88000A18D13 /* Ghostty.sdef */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +109,7 @@
 		A5D495A1299BEC7E00DD1313 /* GhosttyKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = GhosttyKit.xcframework; sourceTree = "<group>"; };
 		FC5218F92D10FFC7004C93E0 /* zsh */ = {isa = PBXFileReference; lastKnownFileType = folder; name = zsh; path = "../zig-out/share/zsh"; sourceTree = "<group>"; };
 		FC9ABA9B2D0F538D0020D4C8 /* bash-completion */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "bash-completion"; path = "../zig-out/share/bash-completion"; sourceTree = "<group>"; };
+		C1DE00000000000000000005 /* GhosttyIDE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GhosttyIDE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -264,11 +281,20 @@
 			);
 			target = A5B30530299BEAAA0047F10C /* Ghostty */;
 		};
+		C1DE0000000000000000000A /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/iOS/iOSApp.swift,
+				"Features/Custom App Icon/DockTilePlugin.swift",
+				"Ghostty/Surface View/SurfaceView_UIKit.swift",
+			);
+			target = C1DE00000000000000000001 /* GhosttyIDE */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		810ACCA02E9D3302004F8F92 /* GhosttyUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = GhosttyUITests; sourceTree = "<group>"; };
-		81F82BC72E82815D001EDFA7 /* Sources */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (81F82CB12E8281F9001EDFA7 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 81F82CB02E8281F5001EDFA7 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 8193245D2F24E80800A9ED8F /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Sources; sourceTree = "<group>"; };
+		81F82BC72E82815D001EDFA7 /* Sources */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (81F82CB12E8281F9001EDFA7 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 81F82CB02E8281F5001EDFA7 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 8193245D2F24E80800A9ED8F /* PBXFileSystemSynchronizedBuildFileExceptionSet */, C1DE0000000000000000000A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Sources; sourceTree = "<group>"; };
 		A54F45F42E1F047A0046BD5C /* Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Tests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -309,6 +335,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				A53D0C8E2B53B0EA00305CE6 /* GhosttyKit.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C1DE00000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C1DE0000000000000000000D /* Sparkle in Frameworks */,
+				C1DE0000000000000000000C /* Carbon.framework in Frameworks */,
+				C1DE0000000000000000000B /* GhosttyKit.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,6 +395,7 @@
 				A54F45F32E1F047A0046BD5C /* GhosttyTests.xctest */,
 				810ACC9F2E9D3301004F8F92 /* GhosttyUITests.xctest */,
 				8193244D2F24E6C000A9ED8F /* DockTilePlugin.plugin */,
+				C1DE00000000000000000005 /* GhosttyIDE.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -486,6 +523,29 @@
 			productReference = A5D4499D2B53AE7B000F5B83 /* Ghostty-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C1DE00000000000000000001 /* GhosttyIDE */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C1DE00000000000000000006 /* Build configuration list for PBXNativeTarget "GhosttyIDE" */;
+			buildPhases = (
+				C1DE00000000000000000002 /* Sources */,
+				C1DE00000000000000000003 /* Frameworks */,
+				C1DE00000000000000000004 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				81F82BC72E82815D001EDFA7 /* Sources */,
+			);
+			name = GhosttyIDE;
+			packageProductDependencies = (
+				C1DE0000000000000000000F /* Sparkle */,
+			);
+			productName = GhosttyIDE;
+			productReference = C1DE00000000000000000005 /* GhosttyIDE.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -506,6 +566,9 @@
 					A54F45F22E1F047A0046BD5C = {
 						CreatedOnToolsVersion = 26.0;
 						TestTargetID = A5B30530299BEAAA0047F10C;
+					};
+					C1DE00000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
 					};
 					A5B30530299BEAAA0047F10C = {
 						CreatedOnToolsVersion = 14.2;
@@ -537,6 +600,7 @@
 				8193244C2F24E6C000A9ED8F /* DockTilePlugin */,
 				A54F45F22E1F047A0046BD5C /* GhosttyTests */,
 				810ACC9E2E9D3301004F8F92 /* GhosttyUITests */,
+				C1DE00000000000000000001 /* GhosttyIDE */,
 			);
 		};
 /* End PBXProject section */
@@ -590,6 +654,26 @@
 			files = (
 				A53D0C952B53B4D800305CE6 /* Assets.xcassets in Resources */,
 				A553F4132E06EB1600257779 /* Ghostty.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C1DE00000000000000000004 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C1DE00000000000000000010 /* bash-completion in Resources */,
+				C1DE0000000000000000001A /* Ghostty.icon in Resources */,
+				C1DE00000000000000000011 /* bat in Resources */,
+				C1DE00000000000000000012 /* fish in Resources */,
+				C1DE0000000000000000001B /* Ghostty.sdef in Resources */,
+				C1DE00000000000000000013 /* ghostty in Resources */,
+				C1DE00000000000000000014 /* locale in Resources */,
+				C1DE00000000000000000015 /* man in Resources */,
+				C1DE00000000000000000016 /* nvim in Resources */,
+				C1DE00000000000000000017 /* terminfo in Resources */,
+				C1DE00000000000000000018 /* vim in Resources */,
+				C1DE00000000000000000019 /* zsh in Resources */,
+				C1DE0000000000000000000E /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -648,6 +732,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A5D449992B53AE7B000F5B83 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C1DE00000000000000000002 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1354,6 +1445,170 @@
 			};
 			name = ReleaseLocal;
 		};
+		C1DE00000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Ghostty;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = GhosttyDebug.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				EXECUTABLE_NAME = ghosttyide;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Ghostty-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "GhosttyIDE[DEBUG]";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "A program running within GhosttyIDE would like to use AppleScript.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "A program running within GhosttyIDE would like to use Bluetooth.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "A program running within GhosttyIDE would like to access your Calendar.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "A program running within GhosttyIDE would like to use the camera.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "A program running within GhosttyIDE would like to access your Contacts.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "A program running within GhosttyIDE would like to access the local network.";
+				INFOPLIST_KEY_NSLocationTemporaryUsageDescriptionDictionary = "A program running within GhosttyIDE would like to use your location temporarily.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "A program running within GhosttyIDE would like to access your location information.";
+				INFOPLIST_KEY_NSMainNibFile = MainMenu;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "A program running within GhosttyIDE would like to use your microphone.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "A program running within GhosttyIDE would like to access motion data.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "A program running within GhosttyIDE would like to access your Photo Library.";
+				INFOPLIST_KEY_NSRemindersUsageDescription = "A program running within GhosttyIDE would like to access your reminders.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "A program running within GhosttyIDE would like to use speech recognition.";
+				INFOPLIST_KEY_NSSystemAdministrationUsageDescription = "A program running within GhosttyIDE requires elevated privileges.";
+				INFOPLIST_PREPROCESS = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1;
+				"OTHER_LDFLAGS[arch=*]" = "-lstdc++";
+				PRODUCT_BUNDLE_IDENTIFIER = com.ghosttyide.app.debug;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/macOS/ghostty-bridging-header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C1DE00000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Ghostty;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Ghostty.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				EXECUTABLE_NAME = ghosttyide;
+				GCC_OPTIMIZATION_LEVEL = fast;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Ghostty-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = GhosttyIDE;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "A program running within GhosttyIDE would like to use AppleScript.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "A program running within GhosttyIDE would like to use Bluetooth.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "A program running within GhosttyIDE would like to access your Calendar.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "A program running within GhosttyIDE would like to use the camera.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "A program running within GhosttyIDE would like to access your Contacts.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "A program running within GhosttyIDE would like to access the local network.";
+				INFOPLIST_KEY_NSLocationTemporaryUsageDescriptionDictionary = "A program running within GhosttyIDE would like to use your location temporarily.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "A program running within GhosttyIDE would like to access your location information.";
+				INFOPLIST_KEY_NSMainNibFile = MainMenu;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "A program running within GhosttyIDE would like to use your microphone.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "A program running within GhosttyIDE would like to access motion data.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "A program running within GhosttyIDE would like to access your Photo Library.";
+				INFOPLIST_KEY_NSRemindersUsageDescription = "A program running within GhosttyIDE would like to access your reminders.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "A program running within GhosttyIDE would like to use speech recognition.";
+				INFOPLIST_KEY_NSSystemAdministrationUsageDescription = "A program running within GhosttyIDE requires elevated privileges.";
+				INFOPLIST_PREPROCESS = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1;
+				"OTHER_LDFLAGS[arch=*]" = "-lstdc++";
+				PRODUCT_BUNDLE_IDENTIFIER = com.ghosttyide.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/macOS/ghostty-bridging-header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		C1DE00000000000000000009 /* ReleaseLocal */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Ghostty;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = GhosttyReleaseLocal.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				EXECUTABLE_NAME = ghosttyide;
+				GCC_OPTIMIZATION_LEVEL = fast;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Ghostty-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = GhosttyIDE;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "A program running within GhosttyIDE would like to use AppleScript.";
+				INFOPLIST_KEY_NSAudioCaptureUsageDescription = "A program running within GhosttyIDE would like to access your system's audio.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "A program running within GhosttyIDE would like to use Bluetooth.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "A program running within GhosttyIDE would like to access your Calendar.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "A program running within GhosttyIDE would like to use the camera.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "A program running within GhosttyIDE would like to access your Contacts.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "A program running within GhosttyIDE would like to access the local network.";
+				INFOPLIST_KEY_NSLocationTemporaryUsageDescriptionDictionary = "A program running within GhosttyIDE would like to use your location temporarily.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "A program running within GhosttyIDE would like to access your location information.";
+				INFOPLIST_KEY_NSMainNibFile = MainMenu;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "A program running within GhosttyIDE would like to use your microphone.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "A program running within GhosttyIDE would like to access motion data.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "A program running within GhosttyIDE would like to access your Photo Library.";
+				INFOPLIST_KEY_NSRemindersUsageDescription = "A program running within GhosttyIDE would like to access your reminders.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "A program running within GhosttyIDE would like to use speech recognition.";
+				INFOPLIST_KEY_NSSystemAdministrationUsageDescription = "A program running within GhosttyIDE requires elevated privileges.";
+				INFOPLIST_PREPROCESS = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1;
+				"OTHER_LDFLAGS[arch=*]" = "-lstdc++";
+				PRODUCT_BUNDLE_IDENTIFIER = com.ghosttyide.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/App/macOS/ghostty-bridging-header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = ReleaseLocal;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1417,6 +1672,16 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = ReleaseLocal;
 		};
+		C1DE00000000000000000006 /* Build configuration list for PBXNativeTarget "GhosttyIDE" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C1DE00000000000000000007 /* Debug */,
+				C1DE00000000000000000008 /* Release */,
+				C1DE00000000000000000009 /* ReleaseLocal */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = ReleaseLocal;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -1432,6 +1697,11 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		A51BFC262B30F1B800E92F16 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A51BFC252B30F1B700E92F16 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		C1DE0000000000000000000F /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A51BFC252B30F1B700E92F16 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
