@@ -246,12 +246,12 @@ ide/CLI/Sources/Commands/
 ```
 
 Tasks:
-- [ ] Inject `GHOSTTYIDE_*` env vars into shell surfaces
-- [ ] `NotificationManager`: macOS notification center bridge
-- [ ] `StatusStore`: in-memory per-pane key-value status
-- [ ] Socket commands: `notify.send`, `notify.list`, `notify.clear`, `status.set`, `status.clear`, `status.list`
-- [ ] CLI commands: `ide notify`, `ide status`
-- [ ] Document Claude Code hooks + OpenCode plugin patterns
+- [x] Inject `GHOSTTYIDE_*` env vars into shell surfaces
+- [x] `NotificationManager`: macOS notification center bridge
+- [x] `StatusStore`: in-memory per-pane key-value status
+- [x] Socket commands: `notify.send`, `notify.list`, `notify.clear`, `status.set`, `status.clear`, `status.list`
+- [x] CLI commands: `ide notify`, `ide status`
+- [x] Document Claude Code hooks + OpenCode plugin patterns (see `ide/AGENTS.md`)
 
 ---
 
