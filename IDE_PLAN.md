@@ -289,17 +289,23 @@ Tasks:
 **Goal:** Design discussion phase (minimal code). Align on UI/UX for all visual elements before building polished implementations.
 
 **Topics to design:**
-1. **Notification panel** — Sidebar? Floating panel? Unread count? Jump-to-latest?
-2. **Status indicators** — Where do per-pane statuses appear? Title bar? Status bar? Inline overlay?
-3. **Command palette appearance** — Centered overlay (VS Code)? Top bar (Spotlight)? Sizing, animations?
-4. **Browser panel integration** — How does it sit in the split tree? URL bar design? Tab bar?
-5. **Overall visual language** — Dark/light theming, spacing, typography, animations
+1. **Workspace & project awareness** — How do I know which project I'm in? Which workspace (window) is active? How do I see/switch all workspaces?
+   - Current tmux approach: status bar with colored pills (magenta = active, yellow = others), session name in title
+   - Native equivalent: tab bar? status bar? title bar integration? Sidebar workspace list?
+   - Per-window naming: how to name/rename workspaces?
+   - Project indicator: always visible? Where?
+2. **Notification panel** — Sidebar? Floating panel? Unread count? Jump-to-latest?
+3. **Status indicators** — Where do per-pane statuses appear? Title bar? Status bar? Inline overlay?
+4. **Command palette appearance** — Centered overlay (VS Code)? Top bar (Spotlight)? Sizing, animations?
+5. **Browser panel integration** — How does it sit in the split tree? URL bar design? Tab bar?
+6. **Overall visual language** — Dark/light theming, spacing, typography, animations
 
 **Deliverable:**
 - Design decisions captured in `DESIGN.md`
 - Implementation tasks generated for visual polish in subsequent phases
 
 Tasks:
+- [ ] Design workspace/project visibility and switching UX
 - [ ] Design notification panel UX
 - [ ] Design status indicator placement and appearance
 - [ ] Design command palette visual treatment
