@@ -385,13 +385,13 @@ Tasks:
 
 **Goal:** Auto-save workspace metadata on quit, silently restore on launch (tmux-resurrect style).
 
-- [ ] `IDESessionFile` data model (workspace names, projects, colors, emoji, metadata)
-- [ ] `IDESessionStore` — single `~/.cache/ghosttyide/session.json` with atomic writes
-- [ ] `WorkspaceController.captureSession()` / `restoreSession()` methods
-- [ ] Hook into `applicationWillTerminate` (save) and `applicationDidFinishLaunching` (restore)
-- [ ] Periodic 60s auto-save timer (crash protection)
-- [ ] Socket commands: `session.save`, `session.info`
-- [ ] CLI commands: `ide session save`, `ide session info`
+- [x] `IDESessionFile` data model (workspace names, projects, colors, emoji, metadata)
+- [x] `IDESessionStore` — single `~/.cache/ghosttyide/session.json` with atomic writes
+- [x] `WorkspaceController.captureSession()` / `restoreSessionMetadata()` / `activateRestoredSession()` methods
+- [x] Hook into `applicationWillTerminate` (save) and `applicationDidFinishLaunching` (restore, two-phase)
+- [x] Periodic auto-save via `NSBackgroundActivityScheduler` (10 min interval, energy-efficient)
+- [x] Socket commands: `session.save`, `session.info`
+- [x] CLI commands: `ide session save`, `ide session info`
 
 ---
 

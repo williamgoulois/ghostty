@@ -86,6 +86,9 @@ Note: The "debug build" warning is driven by the **Zig** build mode (`ghostty_in
 - `ide/CLI/Sources/Commands/WorkspaceCommand.swift` — ide workspace new|switch|next|previous|list|rename|meta|project-switch
 - `ide/CLI/Sources/Commands/NotifyCommand.swift` — ide notify send|list|clear
 - `ide/CLI/Sources/Commands/StatusCommand.swift` — ide status set|clear|list
+- `ide/CLI/Sources/Commands/SessionCommand.swift` — ide session save|info
+- `ide/Sources/Workspace/IDESessionStore.swift` — Session data model + disk I/O (~/.cache/ghosttyide/session.json)
+- `ide/Sources/Socket/Commands/SessionCommands.swift` — session.save, session.info
 - `ide/Sources/Keybindings/VimDetector.swift` — Detect vim/neovim in focused surface via title regex
 - `ide/Sources/Keybindings/IDEKeybindConfig.swift` — Parse `~/.config/ghosttyide/config`, default bindings
 - `ide/Sources/Keybindings/IDEKeybindRegistry.swift` — Match NSEvent → IDEAction
@@ -119,6 +122,8 @@ swift run ide notify send "Title" --body "Body"
 swift run ide notify list
 swift run ide status set agent idle --pane <uuid>
 swift run ide status list
+swift run ide session save
+swift run ide session info
 swift run ide raw <command> -a key=value
 
 # Or run the built binary directly
@@ -131,12 +136,13 @@ ide/CLI/.build/debug/ide pane list
 # Integration tests (requires GhosttyIDE running + CLI built)
 python3 ide/Tests/test_socket.py
 
-# Tests cover (91 total):
+# Tests cover (98 total):
 # - Socket protocol (13 tests): help, app.version, app.pid, pane.list, pane.focus-direction, error cases
 # - Project (10 tests): save, list, restore, delete, name validation
 # - Workspace (21 tests): new, new with options, empty/missing name, list with field validation,
 #     switch, visited-after-switch, next/previous with round-trip, rename, meta.set/clear/visible-in-list, project.switch
 # - Notify (7 tests): send, title only, send with pane, missing/empty title, list, clear
 # - Status (9 tests): set, set another, overwrite, missing key/value, list, list filtered, clear specific/all
-# - CLI (31 tests): help, app, pane, pane focus-direction, project, workspace, notify, status, raw, --json, error codes
+# - Session (4 tests): save, info, info structure, save idempotent
+# - CLI (34 tests): help, app, pane, pane focus-direction, project, workspace, notify, status, session, raw, --json, error codes
 ```
