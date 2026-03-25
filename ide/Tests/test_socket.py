@@ -303,6 +303,16 @@ def test_workspace_switch():
     assert_eq(resp["data"]["name"], TEMP_WORKSPACE)
 
 
+def test_workspace_visited_after_switch():
+    """After switching to a workspace, is_visited should be true (surface tree created)."""
+    send_command({"command": "project.switch", "args": {"name": TEMP_WS_PROJECT}})
+    send_command({"command": "workspace.switch", "args": {"name": TEMP_WORKSPACE}})
+    resp = send_command({"command": "workspace.list"})
+    assert_eq(resp["ok"], True)
+    ws = next(w for w in resp["data"]["workspaces"] if w["name"] == TEMP_WORKSPACE)
+    assert_eq(ws["is_visited"], True, "Workspace should be visited after switch ")
+
+
 def test_workspace_switch_not_found():
     resp = send_command({"command": "workspace.switch", "args": {"name": "nonexistent_ws_xyz"}})
     assert_eq(resp["ok"], False)
@@ -832,6 +842,7 @@ if __name__ == "__main__":
     test("workspace.new empty name", test_workspace_new_empty_name)
     test("workspace.list", test_workspace_list)
     test("workspace.switch", test_workspace_switch)
+    test("workspace.visited after switch", test_workspace_visited_after_switch)
     test("workspace.switch not found", test_workspace_switch_not_found)
     test("workspace.next", test_workspace_next)
     test("workspace.previous", test_workspace_previous)

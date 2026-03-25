@@ -13,6 +13,12 @@ import Foundation
 final class WorkspaceController: ObservableObject {
     static let shared = WorkspaceController()
 
+    // MARK: - Terminal Controller Bridge
+
+    /// The terminal controller whose surfaceTree we swap when switching workspaces.
+    /// Set by TerminalController under #if GHOSTTY_IDE.
+    weak var terminalController: BaseTerminalController?
+
     // MARK: - Published State
 
     /// All workspaces across all projects.
@@ -100,20 +106,39 @@ final class WorkspaceController: ObservableObject {
 
     // MARK: - Switching
 
-    /// Switch to a specific workspace. Creates surfaces lazily on first visit.
+    /// Switch to a specific workspace. Swaps the terminal controller's surfaceTree
+    /// so each workspace has its own independent split layout with live PTY processes.
     func switchTo(workspace: IDEWorkspace) {
         guard workspace.id != activeWorkspace?.id else { return }
 
-        // Save current position for current project
-        if let current = activeWorkspace {
+        // Save current tree + focus to outgoing workspace
+        if let current = activeWorkspace, let ctrl = terminalController {
+            current.splitTree = ctrl.surfaceTree
+            current.focusedSurface = ctrl.focusedSurface
             lastActivePerProject[current.project] = current.id
         }
 
         activeWorkspace = workspace
 
-        // Lazy surface creation happens in the UI layer:
-        // When the UI detects activeWorkspace changed, it checks isVisited
-        // and creates surfaces if needed.
+        // Swap tree for incoming workspace
+        guard let ctrl = terminalController else { return }
+        if let tree = workspace.splitTree {
+            // Revisiting — restore saved tree (surfaces are still alive)
+            ctrl.surfaceTree = tree
+            if let focused = workspace.focusedSurface {
+                DispatchQueue.main.async {
+                    ctrl.focusedSurface = focused
+                    Ghostty.moveFocus(to: focused)
+                }
+            }
+        } else {
+            // First visit — lazy surface creation
+            guard let appDelegate = NSApp.delegate as? AppDelegate,
+                  let ghostty_app = appDelegate.ghostty.app else { return }
+            let surface = Ghostty.SurfaceView(ghostty_app, baseConfig: nil)
+            ctrl.surfaceTree = .init(view: surface)
+            workspace.splitTree = ctrl.surfaceTree
+        }
     }
 
     /// Switch to workspace by name (within active project).
