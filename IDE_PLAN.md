@@ -397,13 +397,21 @@ Tasks:
 
 ## Phase 9c: Notification Wiring
 
-**Goal:** Connect the notification system end-to-end (currently half-wired).
+**Goal:** Connect the notification system end-to-end with per-pane unread tracking.
 
-- [ ] Bridge `NotificationManager.unreadCount` → `workspace.unreadNotifications` via `WorkspaceStatusBridge`
-- [ ] Wire `.ideToggleNotificationPanel` observer to show/hide `NotificationPanelView`
-- [ ] Make top bar bell badge a clickable button → popover
-- [ ] Mark as read when panel opens
-- [ ] Polish `NotificationPanelView` (corner radius, shadow, empty state icon)
+- [x] `NotificationManager` → `ObservableObject` with `@Published unreadPaneIds: Set<String>`
+- [x] `markPaneRead(paneId:)` for pane-level mark-as-read on focus
+- [x] `WorkspaceStatusBridge` subscribes to `$unreadPaneIds` via Combine, recomputes workspace unread counts
+- [x] `WorkspaceController.workspace(containingPaneId:)` + `countUnreadPanes()` helpers
+- [x] `TerminalView` `#if GHOSTTY_IDE`: mark pane read on focus change, inject `NotificationManager` as environment object
+- [x] `TerminalSplitLeaf` `#if GHOSTTY_IDE`: `@EnvironmentObject` + `PaneNotificationOverlay` on each leaf
+- [x] Top bar bell badge → clickable button with popover hosting `NotificationPanelView`
+- [x] Bell badge shows global count (`unreadPaneIds.count`) across all projects/workspaces
+- [x] Bottom bar workspace pills show per-workspace red dot (derived from per-pane counts)
+- [x] Wire `.ideToggleNotificationPanel` observer via `.onReceive` (Cmd+Shift+M keybinding)
+- [x] Mark all read when notification panel opens
+- [x] "Notifications: Show Panel" command palette entry
+- [x] Polish `NotificationPanelView` empty state with bell.slash icon
 
 ---
 
@@ -499,7 +507,8 @@ Tasks:
 | `macos/Sources/Features/Splits/SplitTree.swift`               | Generic leaf type or protocol         | Browser panels in split tree       |
 | `macos/Sources/App/macOS/AppDelegate.swift`                   | Hook socket/keybind/watcher init      | Socket + keybind lifecycle         |
 | `macos/Sources/Ghostty/Surface View/SurfaceView_AppKit.swift` | IDE keybind interception + env vars   | `performKeyEquivalent()` hook      |
-| `macos/Sources/Features/Terminal/TerminalView.swift`           | Top/bottom bar embedding              | IDE chrome                         |
+| `macos/Sources/Features/Terminal/TerminalView.swift`           | Top/bottom bar + notification env     | IDE chrome + pane-level mark-read  |
+| `macos/Sources/Features/Splits/TerminalSplitTreeView.swift`   | Pane notification overlay             | Per-pane unread border indicator   |
 | `macos/Sources/Features/Command Palette/TerminalCommandPalette.swift` | IDE command palette entries    | IDE commands in palette            |
 | `include/ghostty.h`                                           | `ghostty_surface_foreground_pid()`    | Vim detection via tcgetpgrp        |
 | `src/apprt/embedded.zig`                                      | Export foreground PID function         | C API for vim detection            |

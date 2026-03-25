@@ -63,7 +63,7 @@ Note: The "debug build" warning is driven by the **Zig** build mode (`ghostty_in
 - `ide/Sources/Socket/Commands/PaneCommands.swift` — pane.list, pane.split, pane.focus, pane.focus-direction, pane.close
 - `ide/Sources/Socket/Commands/AppCommands.swift` — app.version, app.pid, app.quit, help
 - `ide/Sources/Socket/Commands/WorkspaceCommands.swift` — project.save/restore/list/delete/close-all + workspace.new/switch/next/previous/list/rename/meta.set/meta.clear + project.switch
-- `ide/Sources/Socket/Commands/NotifyCommands.swift` — notify.send, notify.list, notify.clear
+- `ide/Sources/Socket/Commands/NotifyCommands.swift` — notify.send, notify.list, notify.clear, notify.status
 - `ide/Sources/Socket/Commands/StatusCommands.swift` — status.set, status.clear, status.list
 - `ide/Sources/Workspace/Workspace.swift` — ProjectFile, ProjectWindowState, PaneSummary data model
 - `ide/Sources/Workspace/WorkspaceStore.swift` — Disk I/O with timestamped files + symlinks
@@ -76,7 +76,7 @@ Note: The "debug build" warning is driven by the **Zig** build mode (`ghostty_in
 - `ide/Sources/Notifications/NotificationManager.swift` — macOS UNUserNotificationCenter bridge + dock badge
 - `ide/Sources/Notifications/StatusStore.swift` — In-memory per-pane key-value status
 - `ide/Sources/Palette/IDECommandPaletteOptions.swift` — IDE commands injected into Ghostty's command palette
-- `ide/Sources/UI/IDETopBarView.swift` — Top bar: workspace metadata, project name, notification badge, drag handle
+- `ide/Sources/UI/IDETopBarView.swift` — Top bar: workspace metadata, project name, notification bell + popover
 - `ide/Sources/UI/IDEBottomBarView.swift` — Bottom bar: workspace pills with agent/notification indicators
 - `ide/Sources/UI/NotificationPanelView.swift` — In-app notification panel (popover)
 - `ide/Sources/UI/PaneNotificationOverlay.swift` — Pane border overlay for unread notifications
@@ -84,7 +84,7 @@ Note: The "debug build" warning is driven by the **Zig** build mode (`ghostty_in
 - `ide/CLI/Sources/SocketClient.swift` — POSIX socket client (connect, send JSON, read response)
 - `ide/CLI/Sources/Commands/ProjectCommand.swift` — ide project save|restore|list|delete|close-all
 - `ide/CLI/Sources/Commands/WorkspaceCommand.swift` — ide workspace new|switch|next|previous|list|rename|meta|project-switch
-- `ide/CLI/Sources/Commands/NotifyCommand.swift` — ide notify send|list|clear
+- `ide/CLI/Sources/Commands/NotifyCommand.swift` — ide notify send|list|clear|status
 - `ide/CLI/Sources/Commands/StatusCommand.swift` — ide status set|clear|list
 - `ide/CLI/Sources/Commands/SessionCommand.swift` — ide session save|info
 - `ide/Sources/Workspace/IDESessionStore.swift` — Session data model + disk I/O (~/.cache/ghosttyide/session.json)
@@ -120,6 +120,7 @@ swift run ide workspace meta clear main ports
 swift run ide workspace project-switch PESAURUS
 swift run ide notify send "Title" --body "Body"
 swift run ide notify list
+swift run ide notify status
 swift run ide status set agent idle --pane <uuid>
 swift run ide status list
 swift run ide session save
@@ -136,13 +137,14 @@ ide/CLI/.build/debug/ide pane list
 # Integration tests (requires GhosttyIDE running + CLI built)
 python3 ide/Tests/test_socket.py
 
-# Tests cover (98 total):
+# Tests cover (102 total):
 # - Socket protocol (13 tests): help, app.version, app.pid, pane.list, pane.focus-direction, error cases
 # - Project (10 tests): save, list, restore, delete, name validation
 # - Workspace (21 tests): new, new with options, empty/missing name, list with field validation,
 #     switch, visited-after-switch, next/previous with round-trip, rename, meta.set/clear/visible-in-list, project.switch
-# - Notify (7 tests): send, title only, send with pane, missing/empty title, list, clear
+# - Notify (9 tests): send, title only, send with pane, missing/empty title, list, clear,
+#     tracks pane unread, clear resets pane unread
 # - Status (9 tests): set, set another, overwrite, missing key/value, list, list filtered, clear specific/all
 # - Session (4 tests): save, info, info structure, save idempotent
-# - CLI (34 tests): help, app, pane, pane focus-direction, project, workspace, notify, status, session, raw, --json, error codes
+# - CLI (36 tests): help, app, pane, pane focus-direction, project, workspace, notify, notify status, status, session, raw, --json, error codes
 ```
