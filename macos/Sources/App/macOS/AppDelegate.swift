@@ -344,6 +344,17 @@ class AppDelegate: NSObject,
         WorkspaceStatusBridge.shared.start()
         IDEKeybindRegistry.shared.load()
         IDEConfigWatcher.shared.start()
+
+        // Session persistence: restore workspace metadata, start auto-save
+        if IDESessionStore.shared.exists() {
+            do {
+                let session = try IDESessionStore.shared.load()
+                WorkspaceController.shared.restoreSessionMetadata(session)
+            } catch {
+                NSLog("[GhosttyIDE] Session restore failed: %@", error.localizedDescription)
+            }
+        }
+        WorkspaceController.shared.startAutoSave()
         #endif
     }
 
@@ -369,6 +380,12 @@ class AppDelegate: NSObject,
                 _ = TerminalController.newWindow(ghostty)
                 undoManager.enableUndoRegistration()
             }
+
+            #if GHOSTTY_IDE
+            // Activate the workspace deferred during session restore
+            // (terminalController is now wired after window creation).
+            WorkspaceController.shared.activateRestoredSession()
+            #endif
         }
     }
 
@@ -436,6 +453,10 @@ class AppDelegate: NSObject,
 
     func applicationWillTerminate(_ notification: Notification) {
         #if GHOSTTY_IDE
+        WorkspaceController.shared.stopAutoSave()
+        let session = WorkspaceController.shared.captureSession()
+        try? IDESessionStore.shared.save(session)
+
         IDEConfigWatcher.shared.stop()
         WorkspaceStatusBridge.shared.stop()
         IDESocketServer.shared.stop()

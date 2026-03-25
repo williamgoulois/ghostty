@@ -33,6 +33,12 @@ final class WorkspaceController: ObservableObject {
     /// Last-active workspace per project (for restoring position on project switch).
     private var lastActivePerProject: [String: UUID] = [:]
 
+    /// Deferred active workspace name (set during restore, activated after window creation).
+    private var pendingActiveWorkspaceName: String?
+
+    /// Background activity scheduler for periodic session auto-save.
+    private var autoSaveActivity: NSBackgroundActivityScheduler?
+
     // MARK: - Computed
 
     /// Workspaces filtered by the active project.
@@ -223,6 +229,123 @@ final class WorkspaceController: ObservableObject {
     func workspace(byName name: String) -> IDEWorkspace? {
         workspaces.first { $0.name == name }
     }
+
+    // MARK: - Session Persistence
+
+    /// Capture current workspace state as a session file (metadata only, no surfaces).
+    func captureSession() -> IDESessionFile {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+
+        var lastActiveMapped: [String: String] = [:]
+        for (project, uuid) in lastActivePerProject {
+            if let ws = workspace(byId: uuid) {
+                lastActiveMapped[project] = ws.name
+            }
+        }
+
+        let sessionWorkspaces = workspaces.map { ws -> IDESessionWorkspace in
+            let metadataEntries = ws.metadata.mapValues { entry in
+                IDESessionMetadataEntry(value: entry.value, icon: entry.icon, url: entry.url)
+            }
+            return IDESessionWorkspace(
+                name: ws.name,
+                project: ws.project,
+                colorHex: ws.color?.hexString,
+                emoji: ws.emoji,
+                metadata: metadataEntries
+            )
+        }
+
+        return IDESessionFile(
+            version: IDESessionFile.currentVersion,
+            savedAt: formatter.string(from: Date()),
+            activeProject: activeProject,
+            activeWorkspaceName: activeWorkspace?.name,
+            lastActivePerProject: lastActiveMapped,
+            workspaces: sessionWorkspaces
+        )
+    }
+
+    /// Restore workspace metadata from a saved session. Does NOT activate any workspace
+    /// (deferred until terminalController is wired via `activateRestoredSession()`).
+    func restoreSessionMetadata(_ session: IDESessionFile) {
+        for wsData in session.workspaces {
+            var color: NSColor? = nil
+            if let hex = wsData.colorHex {
+                color = NSColor(hex: hex)
+            }
+
+            let ws = addWorkspace(
+                name: wsData.name,
+                project: wsData.project,
+                color: color,
+                emoji: wsData.emoji
+            )
+
+            for (key, entry) in wsData.metadata {
+                ws.setMetadata(key: key, value: entry.value, icon: entry.icon, url: entry.url)
+            }
+        }
+
+        // Rebuild lastActivePerProject (name → UUID)
+        for (project, wsName) in session.lastActivePerProject {
+            if let ws = workspaces.first(where: { $0.name == wsName && $0.project == project }) {
+                lastActivePerProject[project] = ws.id
+            }
+        }
+
+        if !session.activeProject.isEmpty {
+            activeProject = session.activeProject
+        }
+
+        pendingActiveWorkspaceName = session.activeWorkspaceName
+    }
+
+    /// Activate the workspace deferred during restore. Call after terminalController is wired.
+    func activateRestoredSession() {
+        guard let name = pendingActiveWorkspaceName else { return }
+        pendingActiveWorkspaceName = nil
+
+        if let ws = filteredWorkspaces.first(where: { $0.name == name }) {
+            switchTo(workspace: ws)
+        } else if let first = filteredWorkspaces.first {
+            switchTo(workspace: first)
+        }
+    }
+
+    /// Start periodic auto-save using NSBackgroundActivityScheduler (10 min interval).
+    func startAutoSave() {
+        stopAutoSave()
+        let activity = NSBackgroundActivityScheduler(
+            identifier: "com.ghosttyide.session-autosave")
+        activity.repeats = true
+        activity.interval = 10 * 60
+        activity.qualityOfService = .utility
+        activity.schedule { [weak self] completion in
+            self?.performAutoSave()
+            completion(.finished)
+        }
+        autoSaveActivity = activity
+    }
+
+    /// Stop the auto-save scheduler.
+    func stopAutoSave() {
+        autoSaveActivity?.invalidate()
+        autoSaveActivity = nil
+    }
+
+    private func performAutoSave() {
+        guard !workspaces.isEmpty else { return }
+        let session = captureSession()
+        do {
+            try IDESessionStore.shared.save(session)
+        } catch {
+            NSLog("[GhosttyIDE] Auto-save session failed: %@", error.localizedDescription)
+        }
+    }
+
+    // MARK: - Query
 
     /// Serialize current state for socket/CLI responses.
     func listAsDict() -> [[String: Any]] {

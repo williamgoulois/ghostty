@@ -11,6 +11,7 @@ struct GhosttyIDE: ParsableCommand {
             App.self,
             Project.self,
             Workspace.self,
+            Session.self,
             Notify.self,
             Status.self,
             Help_.self,

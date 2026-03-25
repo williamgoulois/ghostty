@@ -73,7 +73,8 @@ def test_help():
                       "workspace.previous", "workspace.list", "workspace.rename",
                       "workspace.meta.set", "workspace.meta.clear",
                       "notify.send", "notify.list", "notify.clear",
-                      "status.set", "status.clear", "status.list"]:
+                      "status.set", "status.clear", "status.list",
+                      "session.save", "session.info"]:
         assert required in commands, f"Missing command: {required}"
 
 
@@ -560,6 +561,47 @@ def test_status_clear_all():
     assert_eq(len(resp2["data"]["statuses"]), 0)
 
 
+# --- Session tests ---
+
+
+def test_session_save():
+    resp = send_command({"command": "session.save"})
+    assert_eq(resp["ok"], True)
+    assert "saved_at" in resp["data"], "Missing 'saved_at' key"
+    assert "workspace_count" in resp["data"], "Missing 'workspace_count' key"
+    assert isinstance(resp["data"]["workspace_count"], int)
+
+
+def test_session_info():
+    # Ensure a save exists first
+    send_command({"command": "session.save"})
+    resp = send_command({"command": "session.info"})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["exists"], True)
+    assert "saved_at" in resp["data"]
+    assert "version" in resp["data"]
+    assert "workspace_count" in resp["data"]
+    assert "active_project" in resp["data"]
+    assert "active_workspace" in resp["data"]
+
+
+def test_session_info_structure():
+    send_command({"command": "session.save"})
+    resp = send_command({"command": "session.info"})
+    assert_eq(resp["ok"], True)
+    assert isinstance(resp["data"]["workspaces"], list), "workspaces should be a list"
+    assert isinstance(resp["data"]["projects"], list), "projects should be a list"
+    assert_eq(resp["data"]["version"], 1)
+
+
+def test_session_save_idempotent():
+    """Saving twice should succeed without error."""
+    resp1 = send_command({"command": "session.save"})
+    assert_eq(resp1["ok"], True)
+    resp2 = send_command({"command": "session.save"})
+    assert_eq(resp2["ok"], True)
+
+
 # --- CLI tests (require `swift build` in ide/CLI first) ---
 
 CLI_DIR = os.path.join(os.path.dirname(__file__), "..", "CLI")
@@ -799,6 +841,30 @@ def test_cli_workspace_project_switch():
     assert "Switched to project" in r.stdout
 
 
+def test_cli_session_save():
+    r = run_cli("session", "save")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Session saved" in r.stdout
+
+
+def test_cli_session_info():
+    run_cli("session", "save")  # ensure file exists
+    r = run_cli("session", "info")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Session:" in r.stdout
+    assert "Active:" in r.stdout
+
+
+def test_cli_session_info_json():
+    run_cli("session", "save")
+    r = run_cli("session", "info", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert data["data"]["exists"] is True
+    assert "workspace_count" in data["data"]
+
+
 if __name__ == "__main__":
     # Check socket exists
     if not os.path.exists(SOCKET_PATH):
@@ -878,6 +944,12 @@ if __name__ == "__main__":
     test("status.clear specific", test_status_clear_specific)
     test("status.clear all", test_status_clear_all)
 
+    print("\n--- Session tests ---")
+    test("session.save", test_session_save)
+    test("session.info", test_session_info)
+    test("session.info structure", test_session_info_structure)
+    test("session.save idempotent", test_session_save_idempotent)
+
     print("\n--- CLI tests ---")
     if find_cli_binary():
         test("cli --help", test_cli_help)
@@ -911,6 +983,9 @@ if __name__ == "__main__":
         test("cli workspace meta clear", test_cli_workspace_meta_clear)
         test("cli workspace next", test_cli_workspace_next)
         test("cli workspace project-switch", test_cli_workspace_project_switch)
+        test("cli session save", test_cli_session_save)
+        test("cli session info", test_cli_session_info)
+        test("cli session info --json", test_cli_session_info_json)
     else:
         print("  SKIP  CLI not built (run: cd ide/CLI && swift build)")
 
