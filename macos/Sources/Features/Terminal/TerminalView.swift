@@ -87,6 +87,9 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                         tree: viewModel.surfaceTree,
                         action: { delegate?.performSplitAction($0) })
                         .environmentObject(ghostty)
+                        #if GHOSTTY_IDE
+                        .environmentObject(NotificationManager.shared)
+                        #endif
                         .ghosttyLastFocusedSurface(lastFocusedSurface)
                         .focused($focused)
                         .onAppear { self.focused = true }
@@ -96,6 +99,9 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                             if newValue != nil {
                                 lastFocusedSurface = .init(newValue)
                                 self.delegate?.focusedSurfaceDidChange(to: newValue)
+                                #if GHOSTTY_IDE
+                                NotificationManager.shared.markPaneRead(paneId: newValue!.id.uuidString)
+                                #endif
                             }
                         }
                         .onChange(of: pwdURL) { newValue in

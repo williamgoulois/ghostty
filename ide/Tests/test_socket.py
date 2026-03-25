@@ -14,6 +14,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import time
 import uuid
 
 SOCKET_PATH = "/tmp/ghosttyide.sock"
@@ -484,6 +485,34 @@ def test_notify_clear():
     assert_eq(len(resp2["data"]["notifications"]), 0)
 
 
+def test_notify_tracks_pane_unread():
+    """Sending a notification with pane_id should add it to unreadPaneIds."""
+    send_command({"command": "notify.clear"})
+    pane_id = "test-pane-notify-" + uuid.uuid4().hex[:8]
+    send_command({"command": "notify.send", "args": {"title": "Pane unread", "pane_id": pane_id}})
+    # @Published write is dispatched to main queue — give it a moment
+    time.sleep(0.3)
+    resp = send_command({"command": "notify.status"})
+    assert_eq(resp["ok"], True)
+    assert pane_id in resp["data"]["unread_pane_ids"], \
+        f"Expected {pane_id} in unread_pane_ids, got {resp['data']['unread_pane_ids']}"
+    assert_eq(resp["data"]["unread_count"], 1)
+    send_command({"command": "notify.clear"})
+
+
+def test_notify_clear_resets_pane_unread():
+    """Clearing notifications should empty unreadPaneIds."""
+    pane_id = "test-pane-clear-" + uuid.uuid4().hex[:8]
+    send_command({"command": "notify.send", "args": {"title": "Clear test", "pane_id": pane_id}})
+    time.sleep(0.3)
+    send_command({"command": "notify.clear"})
+    time.sleep(0.3)
+    resp = send_command({"command": "notify.status"})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["unread_count"], 0)
+    assert_eq(len(resp["data"]["unread_pane_ids"]), 0)
+
+
 # --- Status tests ---
 
 
@@ -746,6 +775,21 @@ def test_cli_notify_send_with_pane():
     assert "Notification sent" in r.stdout
 
 
+def test_cli_notify_status():
+    r = run_cli("notify", "status")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Unread panes:" in r.stdout
+
+
+def test_cli_notify_status_json():
+    r = run_cli("notify", "status", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert "unread_count" in data["data"]
+    assert "unread_pane_ids" in data["data"]
+
+
 def test_cli_status_set():
     r = run_cli("status", "set", "test_key", "test_value", "--pane", "cli-test-pane")
     assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
@@ -932,6 +976,8 @@ if __name__ == "__main__":
     test("notify.send empty title", test_notify_send_empty_title)
     test("notify.list", test_notify_list)
     test("notify.clear", test_notify_clear)
+    test("notify.tracks pane unread", test_notify_tracks_pane_unread)
+    test("notify.clear resets pane unread", test_notify_clear_resets_pane_unread)
 
     print("\n--- Status tests ---")
     test("status.set", test_status_set)
@@ -970,6 +1016,8 @@ if __name__ == "__main__":
         test("cli notify send --pane", test_cli_notify_send_with_pane)
         test("cli notify list --json", test_cli_notify_list)
         test("cli notify clear", test_cli_notify_clear)
+        test("cli notify status", test_cli_notify_status)
+        test("cli notify status --json", test_cli_notify_status_json)
         test("cli status set", test_cli_status_set)
         test("cli status list --json", test_cli_status_list)
         test("cli status list --pane", test_cli_status_list_filtered)

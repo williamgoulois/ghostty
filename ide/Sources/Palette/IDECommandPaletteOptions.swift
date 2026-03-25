@@ -109,6 +109,15 @@ struct IDECommandPaletteOptions {
         // --- Notification commands ---
 
         opts.append(CommandOption(
+            title: "Notifications: Show Panel",
+            description: "Toggle the notification panel",
+            leadingIcon: "bell",
+            action: {
+                NotificationCenter.default.post(name: .ideToggleNotificationPanel, object: nil)
+            }
+        ))
+
+        opts.append(CommandOption(
             title: "Notifications: Clear All",
             description: "Clear all IDE notifications",
             leadingIcon: "bell.slash",

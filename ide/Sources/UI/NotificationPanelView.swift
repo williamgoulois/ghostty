@@ -37,8 +37,11 @@ struct NotificationPanelView: View {
 
             // Notification list
             if notifications.isEmpty {
-                VStack {
+                VStack(spacing: 8) {
                     Spacer()
+                    Image(systemName: "bell.slash")
+                        .font(.system(size: 28))
+                        .foregroundColor(.secondary.opacity(0.5))
                     Text("No notifications")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)

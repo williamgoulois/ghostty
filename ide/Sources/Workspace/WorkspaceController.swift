@@ -230,6 +230,47 @@ final class WorkspaceController: ObservableObject {
         workspaces.first { $0.name == name }
     }
 
+    /// Find the workspace that contains a surface with the given pane ID.
+    func workspace(containingPaneId paneId: String) -> IDEWorkspace? {
+        for ws in workspaces {
+            guard let root = liveRoot(for: ws) else { continue }
+            if Self.treeContains(root, paneId: paneId) { return ws }
+        }
+        return nil
+    }
+
+    /// Count how many panes in a workspace are in the given unread set.
+    func countUnreadPanes(in workspace: IDEWorkspace, unreadPaneIds: Set<String>) -> Int {
+        guard let root = liveRoot(for: workspace) else { return 0 }
+        return Self.countMatching(root, in: unreadPaneIds)
+    }
+
+    /// For the active workspace, use the live controller tree (the saved splitTree
+    /// may be stale since SplitTree is a value type). For inactive workspaces, use
+    /// the snapshot saved on last switch-away.
+    private func liveRoot(for workspace: IDEWorkspace) -> SplitTree<Ghostty.SurfaceView>.Node? {
+        if workspace.id == activeWorkspace?.id, let ctrl = terminalController {
+            return ctrl.surfaceTree.root
+        }
+        return workspace.splitTree?.root
+    }
+
+    private static func treeContains(_ node: SplitTree<Ghostty.SurfaceView>.Node, paneId: String) -> Bool {
+        switch node {
+        case .leaf(let view): return view.id.uuidString == paneId
+        case .split(let split): return treeContains(split.left, paneId: paneId)
+                                     || treeContains(split.right, paneId: paneId)
+        }
+    }
+
+    private static func countMatching(_ node: SplitTree<Ghostty.SurfaceView>.Node, in paneIds: Set<String>) -> Int {
+        switch node {
+        case .leaf(let view): return paneIds.contains(view.id.uuidString) ? 1 : 0
+        case .split(let split): return countMatching(split.left, in: paneIds)
+                                      + countMatching(split.right, in: paneIds)
+        }
+    }
+
     // MARK: - Session Persistence
 
     /// Capture current workspace state as a session file (metadata only, no surfaces).

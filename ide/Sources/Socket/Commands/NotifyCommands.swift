@@ -25,5 +25,14 @@ extension IDECommandRouter {
             NotificationManager.shared.clearAll()
             return .success()
         }
+
+        register("notify.status") { _ in
+            let nm = NotificationManager.shared
+            return .success([
+                "unread_pane_ids": Array(nm.unreadPaneIds),
+                "unread_count": nm.unreadPaneIds.count,
+                "total_notifications": nm.recentNotifications.count,
+            ])
+        }
     }
 }

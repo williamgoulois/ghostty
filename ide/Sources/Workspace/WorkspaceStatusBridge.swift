@@ -29,6 +29,14 @@ final class WorkspaceStatusBridge {
         branchTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             self?.refreshGitBranch()
         }
+
+        // Recompute workspace unread counts when per-pane unread set changes
+        NotificationManager.shared.$unreadPaneIds
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] paneIds in
+                self?.recomputeWorkspaceUnreadCounts(unreadPaneIds: paneIds)
+            }
+            .store(in: &cancellables)
     }
 
     func stop() {
@@ -121,5 +129,15 @@ final class WorkspaceStatusBridge {
         let ai = order.firstIndex(of: a) ?? 0
         let bi = order.firstIndex(of: b) ?? 0
         return ai >= bi ? a : b
+    }
+
+    // MARK: - Notifications
+
+    /// Recompute each workspace's unreadNotifications from per-pane unread state.
+    private func recomputeWorkspaceUnreadCounts(unreadPaneIds: Set<String>) {
+        let ctrl = WorkspaceController.shared
+        for ws in ctrl.workspaces {
+            ws.unreadNotifications = ctrl.countUnreadPanes(in: ws, unreadPaneIds: unreadPaneIds)
+        }
     }
 }

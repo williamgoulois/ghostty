@@ -4,7 +4,7 @@ import Foundation
 struct Notify: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Send and manage notifications.",
-        subcommands: [Send.self, List.self, Clear.self]
+        subcommands: [Send.self, List.self, Clear.self, Status.self]
     )
 
     struct Send: ParsableCommand {
@@ -94,6 +94,29 @@ struct Notify: ParsableCommand {
                 Output.print(response: resp, json: false)
                 throw ExitCode.failure
             }
+        }
+    }
+
+    struct Status: ParsableCommand {
+        static let configuration = CommandConfiguration(abstract: "Show notification unread status.")
+
+        @OptionGroup var global: GhosttyIDE.GlobalOptions
+
+        func run() throws {
+            let path = try global.resolvedSocketPath()
+            let resp = try SocketClient.send(command: "notify.status", socketPath: path)
+            if global.json {
+                Output.print(response: resp, json: true)
+                return
+            }
+            guard resp.ok, let data = resp.data as? [String: Any] else {
+                Output.print(response: resp, json: false)
+                if !resp.ok { throw ExitCode.failure }
+                return
+            }
+            let count = data["unread_count"] as? Int ?? 0
+            let total = data["total_notifications"] as? Int ?? 0
+            print("Unread panes: \(count), Total notifications: \(total)")
         }
     }
 }

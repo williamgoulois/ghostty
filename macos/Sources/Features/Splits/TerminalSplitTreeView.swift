@@ -91,6 +91,10 @@ private struct TerminalSplitLeaf: View {
     let isSplit: Bool
     let action: (TerminalSplitOperation) -> Void
 
+    #if GHOSTTY_IDE
+    @EnvironmentObject var notificationManager: NotificationManager
+    #endif
+
     @State private var dropState: DropState = .idle
     @State private var isSelfDragging: Bool = false
 
@@ -125,6 +129,13 @@ private struct TerminalSplitLeaf: View {
                     dropState = .idle
                 }
             }
+            #if GHOSTTY_IDE
+            .overlay {
+                PaneNotificationOverlay(
+                    hasUnread: notificationManager.unreadPaneIds.contains(surfaceView.id.uuidString)
+                )
+            }
+            #endif
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Terminal pane")
         }

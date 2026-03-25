@@ -1,17 +1,22 @@
 import AppKit
+import Combine
 import Foundation
 import UserNotifications
 
 /// Manages macOS system notifications for GhosttyIDE.
 /// Foreground presentation is handled by AppDelegate's UNUserNotificationCenterDelegate.
-final class NotificationManager {
+///
+/// ObservableObject so SwiftUI views (IDETopBarView, TerminalSplitLeaf) can react
+/// to changes in per-pane unread state via @ObservedObject / @EnvironmentObject.
+final class NotificationManager: ObservableObject {
     static let shared = NotificationManager()
 
     private(set) var recentNotifications: [NotificationRecord] = []
     private let maxRecent = 100
 
-    /// Total unread count across all notifications.
-    private(set) var unreadCount: Int = 0
+    /// Pane IDs with unread notifications. @Published so Combine subscribers
+    /// (WorkspaceStatusBridge) and SwiftUI views react to changes.
+    @Published private(set) var unreadPaneIds: Set<String> = []
 
     struct NotificationRecord {
         let id: String
@@ -27,6 +32,7 @@ final class NotificationManager {
     }
 
     /// Send a macOS system notification and store in recent list.
+    /// Safe to call from any thread — @Published writes are dispatched to main.
     func send(title: String, body: String = "", paneId: String? = nil) -> String {
         let id = UUID().uuidString
 
@@ -45,7 +51,15 @@ final class NotificationManager {
             recentNotifications.removeFirst(recentNotifications.count - maxRecent)
         }
 
-        unreadCount += 1
+        // @Published must be written on main thread for Combine pipeline to fire.
+        // send() can be called from socket handler (background thread).
+        if let paneId {
+            if Thread.isMainThread {
+                unreadPaneIds.insert(paneId)
+            } else {
+                DispatchQueue.main.async { self.unreadPaneIds.insert(paneId) }
+            }
+        }
         updateDockBadge()
 
         return id
@@ -67,23 +81,35 @@ final class NotificationManager {
     }
 
     /// Clear all recent notifications and delivered system notifications.
+    /// Safe to call from any thread — @Published writes are dispatched to main.
     func clearAll() {
         recentNotifications.removeAll()
-        unreadCount = 0
+        if Thread.isMainThread {
+            unreadPaneIds.removeAll()
+        } else {
+            DispatchQueue.main.async { self.unreadPaneIds.removeAll() }
+        }
         updateDockBadge()
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
 
-    /// Mark all as read (resets unread count and dock badge).
+    /// Mark all as read (resets all pane unread state and dock badge).
     func markAllRead() {
-        unreadCount = 0
+        unreadPaneIds.removeAll()
+        updateDockBadge()
+    }
+
+    /// Mark a specific pane as read (called when pane receives focus).
+    func markPaneRead(paneId: String) {
+        unreadPaneIds.remove(paneId)
         updateDockBadge()
     }
 
     /// Update the dock tile badge with the current unread count.
     private func updateDockBadge() {
+        let count = unreadPaneIds.count
         DispatchQueue.main.async {
-            NSApp.dockTile.badgeLabel = self.unreadCount > 0 ? "\(self.unreadCount)" : nil
+            NSApp.dockTile.badgeLabel = count > 0 ? "\(count)" : nil
         }
     }
 }

@@ -1,9 +1,11 @@
 import SwiftUI
 
 /// Top bar showing active workspace context: name, git branch, agent state, extensible metadata.
-/// Right side: project name + notification badge. Right edge is a drag handle.
+/// Right side: project name + notification bell with popover panel.
 struct IDETopBarView: View {
     @ObservedObject var controller: WorkspaceController
+    @ObservedObject private var notificationManager = NotificationManager.shared
+    @State private var showNotificationPanel = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -19,6 +21,14 @@ struct IDETopBarView: View {
         }
         .frame(height: 28)
         .background(Color(nsColor: .windowBackgroundColor).opacity(0.85))
+        .onReceive(NotificationCenter.default.publisher(for: .ideToggleNotificationPanel)) { _ in
+            showNotificationPanel.toggle()
+        }
+        .onChange(of: showNotificationPanel) { isShowing in
+            if isShowing {
+                notificationManager.markAllRead()
+            }
+        }
     }
 
     // MARK: - Left Side (workspace context)
@@ -91,26 +101,42 @@ struct IDETopBarView: View {
                     )
             }
 
-            // Notification badge
-            let totalUnread = controller.filteredWorkspaces.reduce(0) { $0 + $1.unreadNotifications }
-            if totalUnread > 0 {
+            // Notification bell — global count across ALL projects/workspaces/panes
+            let totalUnread = notificationManager.unreadPaneIds.count
+            Button(action: { showNotificationPanel.toggle() }) {
                 HStack(spacing: 3) {
-                    Image(systemName: "bell.fill")
+                    Image(systemName: totalUnread > 0 ? "bell.fill" : "bell")
                         .font(.system(size: 10))
-                    Text("\(totalUnread)")
-                        .font(.system(size: 10, weight: .medium))
+                    if totalUnread > 0 {
+                        Text("\(totalUnread)")
+                            .font(.system(size: 10, weight: .medium))
+                    }
                 }
-                .foregroundColor(.white)
+                .foregroundColor(totalUnread > 0 ? .white : .secondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(
-                    Capsule().fill(Color.red)
+                    Capsule().fill(totalUnread > 0 ? Color.red : Color.clear)
+                )
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showNotificationPanel, arrowEdge: .bottom) {
+                NotificationPanelView(
+                    isPresented: $showNotificationPanel,
+                    notifications: notificationManager.recentNotifications,
+                    onJumpToPane: { paneId in
+                        if let ws = controller.workspace(containingPaneId: paneId) {
+                            controller.switchTo(workspace: ws)
+                        }
+                        showNotificationPanel = false
+                    },
+                    onClearAll: {
+                        notificationManager.clearAll()
+                        showNotificationPanel = false
+                    }
                 )
             }
 
-            // Drag handle area (invisible but provides window drag)
-            IDEDragHandleView()
-                .frame(width: 40, height: 20)
         }
     }
 
@@ -159,39 +185,3 @@ struct IDEMetadataChip: View {
     }
 }
 
-/// An NSView-backed drag handle that allows window dragging.
-struct IDEDragHandleView: NSViewRepresentable {
-    func makeNSView(context: Context) -> DragHandleNSView {
-        DragHandleNSView()
-    }
-
-    func updateNSView(_ nsView: DragHandleNSView, context: Context) {}
-
-    class DragHandleNSView: NSView {
-        override var mouseDownCanMoveWindow: Bool { true }
-
-        override func draw(_ dirtyRect: NSRect) {
-            // Draw subtle grip dots
-            guard let context = NSGraphicsContext.current?.cgContext else { return }
-            let dotColor = NSColor.tertiaryLabelColor
-            context.setFillColor(dotColor.cgColor)
-
-            let dotSize: CGFloat = 2
-            let spacing: CGFloat = 4
-            let cols = 3
-            let rows = 2
-            let totalWidth = CGFloat(cols) * dotSize + CGFloat(cols - 1) * spacing
-            let totalHeight = CGFloat(rows) * dotSize + CGFloat(rows - 1) * spacing
-            let startX = (bounds.width - totalWidth) / 2
-            let startY = (bounds.height - totalHeight) / 2
-
-            for row in 0..<rows {
-                for col in 0..<cols {
-                    let x = startX + CGFloat(col) * (dotSize + spacing)
-                    let y = startY + CGFloat(row) * (dotSize + spacing)
-                    context.fillEllipse(in: CGRect(x: x, y: y, width: dotSize, height: dotSize))
-                }
-            }
-        }
-    }
-}
