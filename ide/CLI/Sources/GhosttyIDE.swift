@@ -10,6 +10,7 @@ struct GhosttyIDE: ParsableCommand {
             Pane.self,
             App.self,
             Project.self,
+            Workspace.self,
             Notify.self,
             Status.self,
             Help_.self,

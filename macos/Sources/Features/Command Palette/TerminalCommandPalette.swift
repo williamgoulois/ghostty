@@ -68,7 +68,8 @@ struct TerminalCommandPaletteView: View {
         let ideOpts = IDECommandPaletteOptions.options(
             onSaveProject: { self.handleProjectSave() },
             onRestoreProject: { name in let _ = try? WorkspaceManager.shared.restore(name: name) },
-            onDeleteProject: { name in let _ = try? WorkspaceStore.shared.delete(name: name) }
+            onDeleteProject: { name in let _ = try? WorkspaceStore.shared.delete(name: name) },
+            onNewWorkspace: { self.handleWorkspaceNew() }
         )
         #else
         let ideOpts: [CommandOption] = []
@@ -159,6 +160,27 @@ struct TerminalCommandPaletteView: View {
             let name = input.stringValue.trimmingCharacters(in: .whitespaces)
             if !name.isEmpty {
                 let _ = try? WorkspaceManager.shared.save(name: name)
+            }
+        }
+    }
+
+    private func handleWorkspaceNew() {
+        let controller = WorkspaceController.shared
+        let alert = NSAlert()
+        alert.messageText = "New Workspace"
+        alert.informativeText = "Enter a name for the new workspace:"
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        input.placeholderString = "workspace-name"
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = input
+        if alert.runModal() == .alertFirstButtonReturn {
+            let name = input.stringValue.trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty {
+                let project = controller.activeProject.isEmpty ? "default" : controller.activeProject
+                let ws = controller.addWorkspace(name: name, project: project)
+                controller.switchTo(workspace: ws)
             }
         }
     }

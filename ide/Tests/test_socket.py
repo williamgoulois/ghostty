@@ -14,10 +14,14 @@ import shutil
 import socket
 import subprocess
 import sys
+import uuid
 
 SOCKET_PATH = "/tmp/ghosttyide.sock"
 passed = 0
 failed = 0
+
+# Unique prefix per run to avoid conflicts between test runs
+RUN_ID = uuid.uuid4().hex[:8]
 
 
 def send_command(cmd: dict, sock_path: str = SOCKET_PATH) -> dict:
@@ -64,7 +68,10 @@ def test_help():
     assert isinstance(commands, list), f"Expected list, got {type(commands)}"
     for required in ["help", "app.version", "app.pid", "pane.list", "pane.split",
                       "project.save", "project.restore", "project.list", "project.delete",
-                      "project.close-all",
+                      "project.close-all", "project.switch",
+                      "workspace.new", "workspace.switch", "workspace.next",
+                      "workspace.previous", "workspace.list", "workspace.rename",
+                      "workspace.meta.set", "workspace.meta.clear",
                       "notify.send", "notify.list", "notify.clear",
                       "status.set", "status.clear", "status.list"]:
         assert required in commands, f"Missing command: {required}"
@@ -145,9 +152,33 @@ def test_pane_focus_nonexistent():
     assert "not found" in resp["error"].lower()
 
 
+def test_pane_focus_direction_left():
+    resp = send_command({"command": "pane.focus-direction", "args": {"direction": "left"}})
+    # May fail with "No active terminal surface" if GhosttyIDE isn't the key window
+    # (e.g., when tests run from another terminal). Both ok=true and this specific
+    # error are acceptable.
+    if not resp["ok"]:
+        assert "no active terminal surface" in resp["error"].lower(), f"Unexpected error: {resp['error']}"
+    else:
+        assert "direction" in resp["data"], "Missing 'direction' in response"
+        assert_eq(resp["data"]["direction"], "left")
+
+
+def test_pane_focus_direction_invalid():
+    resp = send_command({"command": "pane.focus-direction", "args": {"direction": "diagonal"}})
+    assert_eq(resp["ok"], False)
+    assert "invalid direction" in resp["error"].lower()
+
+
+def test_pane_focus_direction_missing():
+    resp = send_command({"command": "pane.focus-direction"})
+    assert_eq(resp["ok"], False)
+    assert "missing" in resp["error"].lower()
+
+
 # --- Project tests ---
 
-TEMP_PROJECT = "_test_project_"
+TEMP_PROJECT = f"_test_project_{RUN_ID}_"
 
 
 def test_project_save():
@@ -213,6 +244,181 @@ def test_project_delete_not_found():
     resp = send_command({"command": "project.delete", "args": {"name": "nonexistent_project_xyz"}})
     assert_eq(resp["ok"], False)
     assert "not found" in resp["error"].lower()
+
+
+# --- Workspace tests ---
+
+TEMP_WORKSPACE = f"_test_ws_{RUN_ID}_"
+TEMP_WS_PROJECT = f"_test_ws_proj_{RUN_ID}_"
+
+
+def test_workspace_new():
+    resp = send_command({"command": "workspace.new", "args": {"name": TEMP_WORKSPACE, "project": TEMP_WS_PROJECT}})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["name"], TEMP_WORKSPACE)
+    assert_eq(resp["data"]["project"], TEMP_WS_PROJECT)
+    assert "id" in resp["data"], "Missing 'id' key"
+
+
+def test_workspace_new_with_options():
+    resp = send_command({"command": "workspace.new", "args": {
+        "name": TEMP_WORKSPACE + "2",
+        "project": TEMP_WS_PROJECT,
+        "color": "#2ECC71",
+        "emoji": "snake",
+    }})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["name"], TEMP_WORKSPACE + "2")
+
+
+def test_workspace_new_missing_name():
+    resp = send_command({"command": "workspace.new", "args": {"project": TEMP_WS_PROJECT}})
+    assert_eq(resp["ok"], False)
+
+
+def test_workspace_new_empty_name():
+    resp = send_command({"command": "workspace.new", "args": {"name": "", "project": TEMP_WS_PROJECT}})
+    assert_eq(resp["ok"], False)
+
+
+def test_workspace_list():
+    # Switch to the test project first
+    send_command({"command": "project.switch", "args": {"name": TEMP_WS_PROJECT}})
+    resp = send_command({"command": "workspace.list"})
+    assert_eq(resp["ok"], True)
+    workspaces = resp["data"]["workspaces"]
+    assert isinstance(workspaces, list), f"Expected list, got {type(workspaces)}"
+    names = [w["name"] for w in workspaces]
+    assert TEMP_WORKSPACE in names, f"Workspace not found in list: {names}"
+    # Validate returned fields
+    ws = next(w for w in workspaces if w["name"] == TEMP_WORKSPACE)
+    for key in ["id", "name", "project", "is_active", "is_visited"]:
+        assert key in ws, f"Missing key '{key}' in workspace"
+    assert_eq(ws["project"], TEMP_WS_PROJECT)
+
+
+def test_workspace_switch():
+    resp = send_command({"command": "workspace.switch", "args": {"name": TEMP_WORKSPACE}})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["name"], TEMP_WORKSPACE)
+
+
+def test_workspace_switch_not_found():
+    resp = send_command({"command": "workspace.switch", "args": {"name": "nonexistent_ws_xyz"}})
+    assert_eq(resp["ok"], False)
+    assert "not found" in resp["error"].lower()
+
+
+def test_workspace_next():
+    # First ensure we're on the known workspace
+    send_command({"command": "workspace.switch", "args": {"name": TEMP_WORKSPACE}})
+    resp = send_command({"command": "workspace.next"})
+    assert_eq(resp["ok"], True)
+    assert "name" in resp["data"]
+    # Should have switched away from TEMP_WORKSPACE (we have at least 2)
+    assert resp["data"]["name"] != TEMP_WORKSPACE, "Next should switch to a different workspace"
+
+
+def test_workspace_previous():
+    resp = send_command({"command": "workspace.previous"})
+    assert_eq(resp["ok"], True)
+    assert "name" in resp["data"]
+    # After next+previous we should be back
+    assert_eq(resp["data"]["name"], TEMP_WORKSPACE)
+
+
+def test_workspace_rename():
+    new_name = TEMP_WORKSPACE + "_renamed"
+    resp = send_command({"command": "workspace.rename", "args": {"name": TEMP_WORKSPACE, "new_name": new_name}})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["old_name"], TEMP_WORKSPACE)
+    assert_eq(resp["data"]["new_name"], new_name)
+    # Rename back for subsequent tests
+    send_command({"command": "workspace.rename", "args": {"name": new_name, "new_name": TEMP_WORKSPACE}})
+
+
+def test_workspace_rename_not_found():
+    resp = send_command({"command": "workspace.rename", "args": {"name": "nonexistent_ws", "new_name": "foo"}})
+    assert_eq(resp["ok"], False)
+
+
+def test_workspace_meta_set():
+    resp = send_command({"command": "workspace.meta.set", "args": {
+        "workspace": TEMP_WORKSPACE,
+        "key": "ports",
+        "value": "3000, 8080",
+        "icon": "network",
+    }})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["key"], "ports")
+    assert_eq(resp["data"]["value"], "3000, 8080")
+
+
+def test_workspace_meta_set_with_url():
+    resp = send_command({"command": "workspace.meta.set", "args": {
+        "workspace": TEMP_WORKSPACE,
+        "key": "pr",
+        "value": "#123",
+        "url": "https://github.com/example/pull/123",
+    }})
+    assert_eq(resp["ok"], True)
+
+
+def test_workspace_meta_set_empty_key():
+    resp = send_command({"command": "workspace.meta.set", "args": {
+        "workspace": TEMP_WORKSPACE,
+        "key": "",
+        "value": "test",
+    }})
+    assert_eq(resp["ok"], False)
+
+
+def test_workspace_meta_visible_in_list():
+    """Verify metadata set earlier appears in workspace.list."""
+    send_command({"command": "project.switch", "args": {"name": TEMP_WS_PROJECT}})
+    resp = send_command({"command": "workspace.list"})
+    assert_eq(resp["ok"], True)
+    ws = next(w for w in resp["data"]["workspaces"] if w["name"] == TEMP_WORKSPACE)
+    assert "metadata" in ws, "Expected metadata in workspace list"
+    assert "ports" in ws["metadata"], f"Expected 'ports' metadata, got keys: {list(ws['metadata'].keys())}"
+    assert_eq(ws["metadata"]["ports"]["value"], "3000, 8080")
+
+
+def test_workspace_meta_set_not_found():
+    resp = send_command({"command": "workspace.meta.set", "args": {
+        "workspace": "nonexistent_ws",
+        "key": "foo",
+        "value": "bar",
+    }})
+    assert_eq(resp["ok"], False)
+
+
+def test_workspace_meta_clear():
+    resp = send_command({"command": "workspace.meta.clear", "args": {
+        "workspace": TEMP_WORKSPACE,
+        "key": "ports",
+    }})
+    assert_eq(resp["ok"], True)
+
+
+def test_workspace_meta_clear_not_found():
+    resp = send_command({"command": "workspace.meta.clear", "args": {
+        "workspace": "nonexistent_ws",
+        "key": "foo",
+    }})
+    assert_eq(resp["ok"], False)
+
+
+def test_project_switch():
+    resp = send_command({"command": "project.switch", "args": {"name": TEMP_WS_PROJECT}})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["project"], TEMP_WS_PROJECT)
+    assert "active_workspace" in resp["data"]
+
+
+def test_project_switch_missing_name():
+    resp = send_command({"command": "project.switch"})
+    assert_eq(resp["ok"], False)
 
 
 # --- Notify tests ---
@@ -395,10 +601,24 @@ def test_cli_pane_list():
     assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
 
 
+def test_cli_pane_focus_direction():
+    r = run_cli("pane", "focus-direction", "left")
+    # May return error if GhosttyIDE isn't the key window (no active surface)
+    if r.returncode != 0:
+        assert "no active terminal surface" in r.stderr.lower() or "no active terminal surface" in r.stdout.lower(), \
+            f"Unexpected error (exit {r.returncode}): {r.stderr or r.stdout}"
+
+
+def test_cli_pane_focus_direction_missing():
+    r = run_cli("pane", "focus-direction")
+    assert r.returncode != 0, "Expected non-zero exit code for missing direction"
+
+
 def test_cli_commands():
     r = run_cli("commands")
     assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
     assert "pane.list" in r.stdout
+    assert "pane.focus-direction" in r.stdout
 
 
 def test_cli_raw():
@@ -504,6 +724,71 @@ def test_cli_status_clear():
     assert "cleared" in r.stdout.lower()
 
 
+CLI_TEMP_WS = f"_cli_ws_{RUN_ID}_"
+CLI_TEMP_PROJ = f"_cli_proj_{RUN_ID}_"
+
+
+def test_cli_workspace_new():
+    r = run_cli("workspace", "new", CLI_TEMP_WS, "--project", CLI_TEMP_PROJ)
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Created workspace" in r.stdout
+
+
+def test_cli_workspace_list():
+    # Switch to the test project
+    run_cli("workspace", "project-switch", CLI_TEMP_PROJ)
+    r = run_cli("workspace", "list")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert CLI_TEMP_WS in r.stdout
+
+
+def test_cli_workspace_list_json():
+    r = run_cli("workspace", "list", "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert "workspaces" in data["data"]
+
+
+def test_cli_workspace_switch():
+    r = run_cli("workspace", "switch", CLI_TEMP_WS)
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Switched" in r.stdout
+
+
+def test_cli_workspace_rename():
+    renamed = CLI_TEMP_WS + "ren"
+    r = run_cli("workspace", "rename", CLI_TEMP_WS, renamed)
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Renamed" in r.stdout
+    # Rename back
+    run_cli("workspace", "rename", renamed, CLI_TEMP_WS)
+
+
+def test_cli_workspace_meta_set():
+    r = run_cli("workspace", "meta", "set", CLI_TEMP_WS, "ports", "3000")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Set" in r.stdout
+
+
+def test_cli_workspace_meta_clear():
+    r = run_cli("workspace", "meta", "clear", CLI_TEMP_WS, "ports")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Cleared" in r.stdout
+
+
+def test_cli_workspace_next():
+    r = run_cli("workspace", "next")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Switched" in r.stdout
+
+
+def test_cli_workspace_project_switch():
+    r = run_cli("workspace", "project-switch", CLI_TEMP_PROJ)
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Switched to project" in r.stdout
+
+
 if __name__ == "__main__":
     # Check socket exists
     if not os.path.exists(SOCKET_PATH):
@@ -524,6 +809,9 @@ if __name__ == "__main__":
     test("pane.focus missing id", test_pane_focus_missing_id)
     test("pane.close bad id", test_pane_close_bad_id)
     test("pane.focus nonexistent", test_pane_focus_nonexistent)
+    test("pane.focus-direction left", test_pane_focus_direction_left)
+    test("pane.focus-direction invalid", test_pane_focus_direction_invalid)
+    test("pane.focus-direction missing", test_pane_focus_direction_missing)
 
     print("\n--- Project tests ---")
     test("project.save", test_project_save)
@@ -536,6 +824,28 @@ if __name__ == "__main__":
     test("project.save invalid name spaces", test_project_save_invalid_name_spaces)
     test("project.restore not found", test_project_restore_not_found)
     test("project.delete not found", test_project_delete_not_found)
+
+    print("\n--- Workspace tests ---")
+    test("workspace.new", test_workspace_new)
+    test("workspace.new with options", test_workspace_new_with_options)
+    test("workspace.new missing name", test_workspace_new_missing_name)
+    test("workspace.new empty name", test_workspace_new_empty_name)
+    test("workspace.list", test_workspace_list)
+    test("workspace.switch", test_workspace_switch)
+    test("workspace.switch not found", test_workspace_switch_not_found)
+    test("workspace.next", test_workspace_next)
+    test("workspace.previous", test_workspace_previous)
+    test("workspace.rename", test_workspace_rename)
+    test("workspace.rename not found", test_workspace_rename_not_found)
+    test("workspace.meta.set", test_workspace_meta_set)
+    test("workspace.meta.set with url", test_workspace_meta_set_with_url)
+    test("workspace.meta.set empty key", test_workspace_meta_set_empty_key)
+    test("workspace.meta.visible in list", test_workspace_meta_visible_in_list)
+    test("workspace.meta.set not found", test_workspace_meta_set_not_found)
+    test("workspace.meta.clear", test_workspace_meta_clear)
+    test("workspace.meta.clear not found", test_workspace_meta_clear_not_found)
+    test("project.switch", test_project_switch)
+    test("project.switch missing name", test_project_switch_missing_name)
 
     print("\n--- Notify tests ---")
     test("notify.send", test_notify_send)
@@ -563,6 +873,8 @@ if __name__ == "__main__":
         test("cli app version", test_cli_app_version)
         test("cli app version --json", test_cli_app_version_json)
         test("cli pane list", test_cli_pane_list)
+        test("cli pane focus-direction", test_cli_pane_focus_direction)
+        test("cli pane focus-direction missing", test_cli_pane_focus_direction_missing)
         test("cli commands", test_cli_commands)
         test("cli raw", test_cli_raw)
         test("cli error exit code", test_cli_error_exit_code)
@@ -579,10 +891,21 @@ if __name__ == "__main__":
         test("cli status list --json", test_cli_status_list)
         test("cli status list --pane", test_cli_status_list_filtered)
         test("cli status clear", test_cli_status_clear)
+        test("cli workspace new", test_cli_workspace_new)
+        test("cli workspace list", test_cli_workspace_list)
+        test("cli workspace list --json", test_cli_workspace_list_json)
+        test("cli workspace switch", test_cli_workspace_switch)
+        test("cli workspace rename", test_cli_workspace_rename)
+        test("cli workspace meta set", test_cli_workspace_meta_set)
+        test("cli workspace meta clear", test_cli_workspace_meta_clear)
+        test("cli workspace next", test_cli_workspace_next)
+        test("cli workspace project-switch", test_cli_workspace_project_switch)
     else:
         print("  SKIP  CLI not built (run: cd ide/CLI && swift build)")
 
     # close-all kills the app (macOS quits when last window closes), so run last
+    # Note: test workspaces are in-memory only (cleaned on app restart).
+    # Each run uses a unique RUN_ID prefix to avoid collisions.
     print("\n--- Destructive tests (close-all) ---")
     print("  SKIP  project.close-all (closes all windows, app may quit)")
 

@@ -73,6 +73,10 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
         case .ready:
             ZStack {
                 VStack(spacing: 0) {
+                    #if GHOSTTY_IDE
+                    IDETopBarView(controller: WorkspaceController.shared)
+                    #endif
+
                     // If we're running in debug mode we show a warning so that users
                     // know that performance will be degraded.
                     if Ghostty.info.mode == GHOSTTY_BUILD_MODE_DEBUG || Ghostty.info.mode == GHOSTTY_BUILD_MODE_RELEASE_SAFE {
@@ -103,6 +107,10 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                         }
                         .frame(idealWidth: lastFocusedSurface?.value?.initialSize?.width,
                                idealHeight: lastFocusedSurface?.value?.initialSize?.height)
+
+                    #if GHOSTTY_IDE
+                    IDEBottomBarView(controller: WorkspaceController.shared)
+                    #endif
                 }
                 // Ignore safe area to extend up in to the titlebar region if we have the "hidden" titlebar style
                 .ignoresSafeArea(.container, edges: ghostty.config.macosTitlebarStyle == .hidden ? .top : [])

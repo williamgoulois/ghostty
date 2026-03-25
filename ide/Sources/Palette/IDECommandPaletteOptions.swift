@@ -4,15 +4,74 @@ import SwiftUI
 struct IDECommandPaletteOptions {
 
     /// All IDE command options for the palette.
-    /// Projects are loaded dynamically from disk each time the palette opens.
+    /// Workspaces and projects are loaded dynamically each time the palette opens.
     static func options(
         onSaveProject: @escaping () -> Void,
         onRestoreProject: @escaping (String) -> Void,
-        onDeleteProject: @escaping (String) -> Void
+        onDeleteProject: @escaping (String) -> Void,
+        onNewWorkspace: @escaping () -> Void
     ) -> [CommandOption] {
         var opts: [CommandOption] = []
 
-        // --- Project commands ---
+        // --- Workspace commands ---
+
+        opts.append(CommandOption(
+            title: "Workspace: New",
+            description: "Create a new workspace in the current project",
+            leadingIcon: "plus.rectangle",
+            action: onNewWorkspace
+        ))
+
+        let controller = WorkspaceController.shared
+        let filtered = controller.filteredWorkspaces
+
+        for ws in filtered {
+            let isActive = ws.id == controller.activeWorkspace?.id
+            if isActive { continue } // skip active — already there
+
+            var subtitle = ws.project
+            if let branch = ws.gitBranch { subtitle += " · \(branch)" }
+            if let agent = ws.agentState { subtitle += " · \(agent.rawValue)" }
+
+            opts.append(CommandOption(
+                title: "Workspace: Switch to \(ws.displayName)",
+                subtitle: subtitle,
+                leadingIcon: "rectangle.stack",
+                leadingColor: ws.color.map { Color(nsColor: $0) },
+                badge: ws.unreadNotifications > 0 ? "\(ws.unreadNotifications)" : nil,
+                action: { controller.switchTo(workspace: ws) }
+            ))
+        }
+
+        opts.append(CommandOption(
+            title: "Workspace: Next",
+            description: "Switch to the next workspace",
+            leadingIcon: "chevron.right",
+            action: { controller.switchNext() }
+        ))
+
+        opts.append(CommandOption(
+            title: "Workspace: Previous",
+            description: "Switch to the previous workspace",
+            leadingIcon: "chevron.left",
+            action: { controller.switchPrevious() }
+        ))
+
+        // --- Project switching ---
+
+        let allProjects = controller.projects
+        for project in allProjects {
+            if project == controller.activeProject { continue }
+            let count = controller.workspaces.filter { $0.project == project }.count
+            opts.append(CommandOption(
+                title: "Project: Switch to \(project)",
+                subtitle: "\(count) workspace\(count == 1 ? "" : "s")",
+                leadingIcon: "folder",
+                action: { controller.switchProject(name: project) }
+            ))
+        }
+
+        // --- Project save/restore ---
 
         opts.append(CommandOption(
             title: "Project: Save Current",
@@ -54,6 +113,13 @@ struct IDECommandPaletteOptions {
             description: "Clear all IDE notifications",
             leadingIcon: "bell.slash",
             action: { NotificationManager.shared.clearAll() }
+        ))
+
+        opts.append(CommandOption(
+            title: "Notifications: Mark All Read",
+            description: "Reset unread count and dock badge",
+            leadingIcon: "bell.badge.slash",
+            action: { NotificationManager.shared.markAllRead() }
         ))
 
         // --- Status commands ---

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import UserNotifications
 
@@ -6,8 +7,11 @@ import UserNotifications
 final class NotificationManager {
     static let shared = NotificationManager()
 
-    private var recentNotifications: [NotificationRecord] = []
+    private(set) var recentNotifications: [NotificationRecord] = []
     private let maxRecent = 100
+
+    /// Total unread count across all notifications.
+    private(set) var unreadCount: Int = 0
 
     struct NotificationRecord {
         let id: String
@@ -41,6 +45,9 @@ final class NotificationManager {
             recentNotifications.removeFirst(recentNotifications.count - maxRecent)
         }
 
+        unreadCount += 1
+        updateDockBadge()
+
         return id
     }
 
@@ -62,6 +69,21 @@ final class NotificationManager {
     /// Clear all recent notifications and delivered system notifications.
     func clearAll() {
         recentNotifications.removeAll()
+        unreadCount = 0
+        updateDockBadge()
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    }
+
+    /// Mark all as read (resets unread count and dock badge).
+    func markAllRead() {
+        unreadCount = 0
+        updateDockBadge()
+    }
+
+    /// Update the dock tile badge with the current unread count.
+    private func updateDockBadge() {
+        DispatchQueue.main.async {
+            NSApp.dockTile.badgeLabel = self.unreadCount > 0 ? "\(self.unreadCount)" : nil
+        }
     }
 }
