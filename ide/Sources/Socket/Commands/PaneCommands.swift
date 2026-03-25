@@ -63,6 +63,36 @@ extension IDECommandRouter {
             return .failure("Pane not found: \(idStr)")
         }
 
+        register("pane.focus-direction") { command in
+            let dirStr = (command.args?["direction"]?.value as? String) ?? ""
+            guard !dirStr.isEmpty else {
+                return .failure("Missing 'direction' argument (left, right, up, down)")
+            }
+
+            guard ["left", "right", "up", "down"].contains(dirStr) else {
+                return .failure("Invalid direction: \(dirStr). Use: left, right, up, down")
+            }
+
+            guard let keyWindow = NSApp.keyWindow,
+                  let controller = keyWindow.windowController as? BaseTerminalController,
+                  let focusedSurface = controller.focusedSurface,
+                  let surface = focusedSurface.surface else {
+                return .failure("No active terminal surface")
+            }
+
+            let action = "goto_split:\(dirStr)"
+            let ok = ghostty_surface_binding_action(
+                surface,
+                action,
+                UInt(action.lengthOfBytes(using: .utf8))
+            )
+            if ok {
+                return .success(["direction": dirStr])
+            } else {
+                return .success(["direction": dirStr, "at_edge": true])
+            }
+        }
+
         register("pane.close") { command in
             guard let idStr = command.args?["id"]?.value as? String,
                   let targetID = UUID(uuidString: idStr) else {

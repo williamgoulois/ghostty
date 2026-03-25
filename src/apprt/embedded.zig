@@ -1598,6 +1598,12 @@ pub const CAPI = struct {
         return surface.core_surface.child_exited;
     }
 
+    /// Returns the PID of the foreground process controlling the surface's
+    /// PTY, or 0 if unavailable. Uses tcgetpgrp() internally (O(1)).
+    export fn ghostty_surface_foreground_pid(surface: *Surface) u32 {
+        return @intCast(surface.core_surface.getProcessInfo(.foreground_pid) orelse 0);
+    }
+
     /// Returns true if the surface has a selection.
     export fn ghostty_surface_has_selection(surface: *Surface) bool {
         return surface.core_surface.hasSelection();

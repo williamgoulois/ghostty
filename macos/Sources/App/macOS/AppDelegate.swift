@@ -341,6 +341,9 @@ class AppDelegate: NSObject,
         #if GHOSTTY_IDE
         IDESocketServer.shared.start()
         NotificationManager.shared.requestPermission()
+        WorkspaceStatusBridge.shared.start()
+        IDEKeybindRegistry.shared.load()
+        IDEConfigWatcher.shared.start()
         #endif
     }
 
@@ -433,6 +436,8 @@ class AppDelegate: NSObject,
 
     func applicationWillTerminate(_ notification: Notification) {
         #if GHOSTTY_IDE
+        IDEConfigWatcher.shared.stop()
+        WorkspaceStatusBridge.shared.stop()
         IDESocketServer.shared.stop()
         #endif
 

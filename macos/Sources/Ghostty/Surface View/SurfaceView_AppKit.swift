@@ -1259,6 +1259,20 @@ extension Ghostty {
                 return false
             }
 
+            // IDE keybind interception: check IDE-specific bindings BEFORE Ghostty's
+            // Zig core. This handles workspace nav, vim-aware pane focus, notifications,
+            // and forwarded Ghostty actions from ~/.config/ghosttyide/config.
+            #if GHOSTTY_IDE
+            if let ideAction = IDEKeybindRegistry.shared.match(event: event) {
+                let handled = IDEActionDispatcher.shared.dispatch(ideAction, surfaceView: self)
+                if handled { return true }
+                // Vim passthrough: forward directly to terminal, bypass Ghostty bindings.
+                // This follows the same pattern as Ghostty's own binding dispatch below.
+                self.keyDown(with: event)
+                return true
+            }
+            #endif
+
             // Get information about if this is a binding.
             let bindingFlags = surfaceModel.flatMap { surface in
                 var ghosttyEvent = event.ghosttyKeyEvent(GHOSTTY_ACTION_PRESS)

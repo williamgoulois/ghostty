@@ -4,7 +4,7 @@ import Foundation
 struct Pane: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Manage terminal panes.",
-        subcommands: [List.self, Split.self, Focus.self, Close.self]
+        subcommands: [List.self, Split.self, Focus.self, FocusDirection.self, Close.self]
     )
 
     struct List: ParsableCommand {
@@ -72,6 +72,29 @@ struct Pane: ParsableCommand {
             let resp = try SocketClient.send(
                 command: "pane.focus",
                 args: ["id": id],
+                socketPath: path
+            )
+            Output.print(response: resp, json: global.json)
+            if !resp.ok { throw ExitCode.failure }
+        }
+    }
+
+    struct FocusDirection: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "focus-direction",
+            abstract: "Focus the pane in a direction (left, right, up, down)."
+        )
+
+        @Argument(help: "Direction: left, right, up, down.")
+        var direction: String
+
+        @OptionGroup var global: GhosttyIDE.GlobalOptions
+
+        func run() throws {
+            let path = try global.resolvedSocketPath()
+            let resp = try SocketClient.send(
+                command: "pane.focus-direction",
+                args: ["direction": direction],
                 socketPath: path
             )
             Output.print(response: resp, json: global.json)
