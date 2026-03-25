@@ -137,6 +137,34 @@ final class WorkspaceController: ObservableObject {
                     Ghostty.moveFocus(to: focused)
                 }
             }
+        } else if let treeData = workspace.pendingSurfaceTreeData {
+            // Session restore — decode saved tree (creates surfaces with saved CWD)
+            workspace.pendingSurfaceTreeData = nil
+            let focusId = workspace.pendingFocusedSurfaceId
+            workspace.pendingFocusedSurfaceId = nil
+            do {
+                let tree = try JSONDecoder().decode(
+                    SplitTree<Ghostty.SurfaceView>.self, from: treeData)
+                ctrl.surfaceTree = tree
+                workspace.splitTree = tree
+                if let focusId {
+                    for surface in ctrl.surfaceTree where surface.id == focusId {
+                        DispatchQueue.main.async {
+                            ctrl.focusedSurface = surface
+                            Ghostty.moveFocus(to: surface)
+                        }
+                        break
+                    }
+                }
+            } catch {
+                NSLog("[GhosttyIDE] Tree restore failed, creating blank: %@",
+                      error.localizedDescription)
+                guard let appDelegate = NSApp.delegate as? AppDelegate,
+                      let ghostty_app = appDelegate.ghostty.app else { return }
+                let surface = Ghostty.SurfaceView(ghostty_app, baseConfig: nil)
+                ctrl.surfaceTree = .init(view: surface)
+                workspace.splitTree = ctrl.surfaceTree
+            }
         } else {
             // First visit — lazy surface creation
             guard let appDelegate = NSApp.delegate as? AppDelegate,
@@ -273,10 +301,16 @@ final class WorkspaceController: ObservableObject {
 
     // MARK: - Session Persistence
 
-    /// Capture current workspace state as a session file (metadata only, no surfaces).
+    /// Capture current workspace state as a session file (metadata + split layout + CWD).
     func captureSession() -> IDESessionFile {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
+
+        // Sync active workspace's live tree before capturing
+        if let active = activeWorkspace, let ctrl = terminalController {
+            active.splitTree = ctrl.surfaceTree
+            active.focusedSurface = ctrl.focusedSurface
+        }
 
         var lastActiveMapped: [String: String] = [:]
         for (project, uuid) in lastActivePerProject {
@@ -289,12 +323,28 @@ final class WorkspaceController: ObservableObject {
             let metadataEntries = ws.metadata.mapValues { entry in
                 IDESessionMetadataEntry(value: entry.value, icon: entry.icon, url: entry.url)
             }
+
+            // Encode split tree if workspace has been visited
+            var surfaceTreeCodable: AnyCodable? = nil
+            var focusedId: String? = nil
+            if let tree = ws.splitTree {
+                if let data = try? JSONEncoder().encode(tree),
+                   let codable = try? JSONDecoder().decode(AnyCodable.self, from: data) {
+                    surfaceTreeCodable = codable
+                }
+            }
+            if let surface = ws.focusedSurface {
+                focusedId = surface.id.uuidString
+            }
+
             return IDESessionWorkspace(
                 name: ws.name,
                 project: ws.project,
                 colorHex: ws.color?.hexString,
                 emoji: ws.emoji,
-                metadata: metadataEntries
+                metadata: metadataEntries,
+                surfaceTree: surfaceTreeCodable,
+                focusedSurfaceId: focusedId
             )
         }
 
@@ -326,6 +376,16 @@ final class WorkspaceController: ObservableObject {
 
             for (key, entry) in wsData.metadata {
                 ws.setMetadata(key: key, value: entry.value, icon: entry.icon, url: entry.url)
+            }
+
+            // Store tree data for lazy decode on first switchTo()
+            if let treeCodable = wsData.surfaceTree {
+                if let data = try? JSONEncoder().encode(treeCodable) {
+                    ws.pendingSurfaceTreeData = data
+                }
+            }
+            if let idStr = wsData.focusedSurfaceId {
+                ws.pendingFocusedSurfaceId = UUID(uuidString: idStr)
             }
         }
 

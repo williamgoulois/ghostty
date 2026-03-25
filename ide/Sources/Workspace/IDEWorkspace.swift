@@ -32,6 +32,11 @@ final class IDEWorkspace: Identifiable, ObservableObject {
     @Published var splitTree: SplitTree<Ghostty.SurfaceView>?
     @Published var focusedSurface: Ghostty.SurfaceView?
 
+    /// Raw tree JSON from session restore, decoded lazily on first switchTo().
+    var pendingSurfaceTreeData: Data?
+    /// UUID of focused surface to restore after tree decode.
+    var pendingFocusedSurfaceId: UUID?
+
     /// Whether this workspace has been visited (surfaces created).
     var isVisited: Bool { splitTree != nil }
 

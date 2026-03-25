@@ -2,8 +2,7 @@ import Foundation
 
 // MARK: - Data Model
 
-/// Persisted session state: workspace metadata, active state, and project memory.
-/// Terminal surfaces are NOT saved — they are lazily recreated on first visit.
+/// Persisted session state: workspace metadata, split layout, CWD, and project memory.
 struct IDESessionFile: Codable {
     static let currentVersion = 1
 
@@ -21,6 +20,8 @@ struct IDESessionWorkspace: Codable {
     let colorHex: String?
     let emoji: String?
     let metadata: [String: IDESessionMetadataEntry]
+    let surfaceTree: AnyCodable?       // Encoded SplitTree (nil = unvisited workspace)
+    let focusedSurfaceId: String?      // UUID string of focused surface
 }
 
 struct IDESessionMetadataEntry: Codable {
