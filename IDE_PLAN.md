@@ -370,14 +370,85 @@ Tasks:
 
 ---
 
-## Phase 9: Polish & Hardening
+## Phase 9a: Fix Workspace Tree Swapping
 
-- [ ] Auto-save on quit, auto-restore on launch
-- [ ] Error handling: socket disconnects, crashed panels, surface failures
-- [ ] Logging: unified debug log for IDE components
-- [ ] Documentation: CLI help, config reference, architecture guide
-- [ ] Implement visual designs from Phase 7 (notification panel, status indicators, etc.)
-- [ ] Strip unused Ghostty features from your build (QuickTerminal, Sparkle, AppIntents — optional, reduces surface area)
+**Goal:** Workspaces currently all display the same terminal content. Fix so each workspace has its own split tree.
+
+- [x] Add `terminalController` reference to `WorkspaceController`
+- [x] Rewrite `switchTo()` to save/restore `surfaceTree` + `focusedSurface` per workspace
+- [x] Wire controller reference in `TerminalController` under `#if GHOSTTY_IDE`
+- [x] Verify: create 3 workspaces, type in each, switch — each shows its own content
+
+---
+
+## Phase 9b: Session Persistence
+
+**Goal:** Auto-save workspace metadata on quit, silently restore on launch (tmux-resurrect style).
+
+- [ ] `IDESessionFile` data model (workspace names, projects, colors, emoji, metadata)
+- [ ] `IDESessionStore` — single `~/.cache/ghosttyide/session.json` with atomic writes
+- [ ] `WorkspaceController.captureSession()` / `restoreSession()` methods
+- [ ] Hook into `applicationWillTerminate` (save) and `applicationDidFinishLaunching` (restore)
+- [ ] Periodic 60s auto-save timer (crash protection)
+- [ ] Socket commands: `session.save`, `session.info`
+- [ ] CLI commands: `ide session save`, `ide session info`
+
+---
+
+## Phase 9c: Notification Wiring
+
+**Goal:** Connect the notification system end-to-end (currently half-wired).
+
+- [ ] Bridge `NotificationManager.unreadCount` → `workspace.unreadNotifications` via `WorkspaceStatusBridge`
+- [ ] Wire `.ideToggleNotificationPanel` observer to show/hide `NotificationPanelView`
+- [ ] Make top bar bell badge a clickable button → popover
+- [ ] Mark as read when panel opens
+- [ ] Polish `NotificationPanelView` (corner radius, shadow, empty state icon)
+
+---
+
+## Phase 9d: Branding + Project Picker
+
+**Goal:** Rebrand user-visible strings to "GhosttyIDE" and add `Cmd+P` project picker.
+
+- [ ] `AppBrand.swift` with `#if GHOSTTY_IDE` conditional name constant
+- [ ] Replace hardcoded "Ghostty" in quit dialog, About view, menu items (~6 locations)
+- [ ] Programmatic menu rename in `applicationDidFinishLaunching` (no duplicate XIB)
+- [ ] `Cmd+P` → project picker (list of projects, select to switch)
+
+---
+
+## Phase 9e: Visual Polish
+
+**Goal:** Refine bars, pills, and chrome for daily-driver quality.
+
+- [ ] Top/bottom bar background: `Color(nsColor:).opacity(0.85)` → `.ultraThinMaterial`
+- [ ] Add thin `Divider()` between bars and content
+- [ ] Improve inactive pill contrast (too low against dark backgrounds)
+- [ ] Add workspace pill hover state
+- [ ] Deduplicate `agentIcon()`/`agentColor()` into `AgentState` extension
+
+---
+
+## Phase 9f: Logging + Error Handling
+
+**Goal:** Add structured logging across all IDE components and harden the socket server.
+
+- [ ] `IDELogger.swift` with per-component `Logger` instances (OSLog)
+- [ ] Add logging to: GitBranchProvider, IDEConfigWatcher, WorkspaceStore, SocketServer silent failures
+- [ ] Socket resilience: max message size (1MB), write() return check
+
+---
+
+## Phase 9g: Workflow Tests
+
+**Goal:** Replace granular unit tests with real-workflow scenario tests.
+
+- [ ] Workspace lifecycle workflow (create, switch, rename, meta, delete)
+- [ ] Session persistence workflow (save, read JSON, verify structure)
+- [ ] Notification workflow (send, list, clear, verify fields)
+- [ ] Agent status workflow (set, overwrite, clear)
+- [ ] CLI workflow tests (full lifecycle via CLI, --json flag, error codes)
 
 ---
 

@@ -14,7 +14,7 @@ Build a clean, maintainable CLI-first IDE on top of Ghostty's terminal emulator 
 ## Architecture
 
 - **Zig core (libghostty):** Never modify. Handles VT parsing, terminal state, Metal rendering.
-- **macOS frontend (`macos/`):** Modify minimally. Only touch `SplitTree.swift` (generic leaf type), `AppDelegate.swift` (socket hook), and Xcode project (new targets).
+- **macOS frontend (`macos/`):** Modify minimally. Only touch `SplitTree.swift` (generic leaf type), `AppDelegate.swift` (socket hook), `TerminalController.swift` (workspace tree bridge), and Xcode project (new targets).
 - **IDE code (`ide/`):** All new code goes here. Socket server, CLI, browser panels, workspaces.
 
 ## Plan
@@ -69,7 +69,7 @@ Note: The "debug build" warning is driven by the **Zig** build mode (`ghostty_in
 - `ide/Sources/Workspace/WorkspaceStore.swift` — Disk I/O with timestamped files + symlinks
 - `ide/Sources/Workspace/WorkspaceManager.swift` — Bridge live app state to data model (save/restore)
 - `ide/Sources/Workspace/IDEWorkspace.swift` — Live workspace model (name, project, color, emoji, metadata, status)
-- `ide/Sources/Workspace/WorkspaceController.swift` — Workspace list management, switching, project filter
+- `ide/Sources/Workspace/WorkspaceController.swift` — Workspace list management, switching, project filter, surfaceTree swap via terminalController bridge
 - `ide/Sources/Workspace/GitBranchProvider.swift` — Background git branch detection
 - `DESIGN.md` — Visual & UX design decisions (top+bottom bar layout, alternatives)
 - `ide/Sources/Workspace/WorkspaceStatusBridge.swift` — Wires git branch, agent state, notifications to active workspace
@@ -131,11 +131,11 @@ ide/CLI/.build/debug/ide pane list
 # Integration tests (requires GhosttyIDE running + CLI built)
 python3 ide/Tests/test_socket.py
 
-# Tests cover (90 total):
+# Tests cover (91 total):
 # - Socket protocol (13 tests): help, app.version, app.pid, pane.list, pane.focus-direction, error cases
 # - Project (10 tests): save, list, restore, delete, name validation
-# - Workspace (20 tests): new, new with options, empty/missing name, list with field validation,
-#     switch, next/previous with round-trip, rename, meta.set/clear/visible-in-list, project.switch
+# - Workspace (21 tests): new, new with options, empty/missing name, list with field validation,
+#     switch, visited-after-switch, next/previous with round-trip, rename, meta.set/clear/visible-in-list, project.switch
 # - Notify (7 tests): send, title only, send with pane, missing/empty title, list, clear
 # - Status (9 tests): set, set another, overwrite, missing key/value, list, list filtered, clear specific/all
 # - CLI (31 tests): help, app, pane, pane focus-direction, project, workspace, notify, status, raw, --json, error codes
