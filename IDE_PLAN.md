@@ -18,6 +18,7 @@ Every change must be **additive** or **isolated** to make rebasing on upstream G
 - [ ] Set up CI: build + test on every push, weekly upstream sync check
 
 **Rebase strategy:**
+
 - Keep a `upstream-tracking` branch that mirrors `ghostty-org/ghostty:main`
 - Your work lives on `main` (or a `ide` branch)
 - Rebase periodically: `git fetch upstream && git rebase upstream/main`
@@ -46,6 +47,7 @@ ghostty/
 ```
 
 Tasks:
+
 - [ ] Create `ide/` directory structure
 - [ ] Decide build approach: extend Ghostty's Xcode project with new targets vs. standalone project linking `GhosttyKit.xcframework`
   - **Recommended:** Add targets to Ghostty's existing Xcode project — you get the existing Metal rendering, surface views, split tree for free
@@ -72,6 +74,7 @@ ide/Sources/Socket/
 ```
 
 Tasks:
+
 - [ ] Implement `SocketServer` — async Unix domain socket listener (use NIO or raw POSIX)
 - [ ] Define JSON command protocol:
   ```json
@@ -106,6 +109,7 @@ ide/CLI/                              # Standalone SPM package
 ```
 
 Build & run:
+
 ```bash
 cd ide/CLI && swift build
 swift run ide pane list
@@ -114,6 +118,7 @@ swift run ide raw app.pid --json
 ```
 
 Tasks:
+
 - [x] Create CLI target using Swift ArgumentParser
 - [x] Implement `SocketClient` — connect, send command, read response, print
 - [x] Map CLI subcommands to socket commands:
@@ -138,6 +143,7 @@ Tasks:
 **Goal:** Named projects with layout persistence. A project = all windows saved as a group.
 
 **Data model hierarchy:**
+
 ```
 GhosttyIDE.app (1 process)
 ├── Project "myproject" (= all windows, saved/restored as a group)
@@ -149,6 +155,7 @@ GhosttyIDE.app (1 process)
 ```
 
 **Storage:** tmux resurrect pattern at `~/.cache/ghosttyide/projects/`
+
 ```
 ~/.cache/ghosttyide/projects/
 ├── myproject -> myproject_20260324T143810.json   # symlink to latest
@@ -157,6 +164,7 @@ GhosttyIDE.app (1 process)
 ```
 
 **Implementation:**
+
 ```
 ide/Sources/Workspace/
 ├── Workspace.swift          # ProjectFile, ProjectWindowState, PaneSummary
@@ -174,6 +182,7 @@ Key insight: Ghostty's `SplitTree<SurfaceView>` is fully Codable. `SurfaceView.i
 real surfaces with decoded pwd. We serialize to JSON files instead of NSCoder.
 
 Tasks:
+
 - [x] Define `ProjectFile` model: version, name, windows array with split tree + pane metadata
 - [x] `WorkspaceStore`: disk I/O with timestamped files + symlinks
 - [x] `WorkspaceManager`: capture window state, restore via `TerminalController.newWindow(_:tree:)`
@@ -182,6 +191,7 @@ Tasks:
 - [ ] Auto-save on quit, auto-restore on launch (deferred)
 
 **Future evolution** (data model supports from day 1):
+
 - Project switching: `project.switch` hides/shows window groups without closing
 - Per-window naming: optional `name` field in `ProjectWindowState` for workspace identity
 
@@ -194,6 +204,7 @@ Tasks:
 ### 5a: Environment injection
 
 Export to every shell spawned by GhosttyIDE:
+
 - `GHOSTTYIDE_SOCKET` — socket path
 - `GHOSTTYIDE_PANE_ID` — current surface UUID
 - `GHOSTTYIDE_WINDOW_ID` — window identifier
@@ -203,17 +214,19 @@ Agents use these to send commands back to the IDE without manual socket discover
 ### 5b: Notification system (socket + macOS)
 
 Socket commands:
+
 - `notify.send` — `{"title": "...", "body": "...", "pane_id": "..."}` → macOS `UNUserNotificationCenter`
 - `notify.list` — list recent notifications
 - `notify.clear` — clear all
 
-CLI: `ide notify "Title" --body "Body" [--pane <id>]`
+CLI: `ide notify send "Title" --body "Body" [--pane <id>]`
 
 macOS system notifications only (no custom in-app UI yet — designed in Phase 7). Sound support (system sounds).
 
 ### 5c: Status tracking
 
 Socket commands:
+
 - `status.set` — `{"key": "claude", "value": "Waiting for input", "pane_id": "..."}`
 - `status.clear` — remove a status key
 - `status.list` — all active statuses
@@ -228,7 +241,21 @@ In-memory per-pane metadata (not persisted).
 - Document OpenCode plugin pattern
 - Provide example configs:
   ```json
-  {"hooks": {"Notification": [{"matcher": "idle_prompt", "hooks": [{"type": "command", "command": "ide notify 'Claude Code' --body 'Waiting for input'"}]}]}}
+  {
+    "hooks": {
+      "Notification": [
+        {
+          "matcher": "idle_prompt",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "ide notify 'Claude Code' --body 'Waiting for input'"
+            }
+          ]
+        }
+      ]
+    }
+  }
   ```
 
 ```
@@ -246,6 +273,7 @@ ide/CLI/Sources/Commands/
 ```
 
 Tasks:
+
 - [x] Inject `GHOSTTYIDE_*` env vars into shell surfaces
 - [x] `NotificationManager`: macOS notification center bridge
 - [x] `StatusStore`: in-memory per-pane key-value status
@@ -260,6 +288,7 @@ Tasks:
 **Note:** Ghostty already has a production-ready command palette (Cmd+Shift+P) with fuzzy search, keyboard navigation, shortcuts display, and Siri/Shortcuts integration. Phase 6 extends it with IDE-specific commands rather than building from scratch.
 
 **Existing infrastructure (upstream Ghostty):**
+
 - `CommandPaletteView` — generic SwiftUI palette with filtering, keyboard nav, hover states
 - `TerminalCommandPaletteView` — builds options from config entries + jump commands + update commands
 - Toggle via `toggle_command_palette` action, default keybind Cmd+Shift+P
@@ -272,41 +301,53 @@ ide/Sources/Palette/
 ```
 
 Tasks:
+
 - [x] Inject IDE commands into existing palette under `#if GHOSTTY_IDE`
 - [x] Dynamic project entries: Save, Restore — <name>, Delete — <name> per saved project
 - [x] NSAlert-based name prompt for "Project: Save Current"
-- [x] Static commands: Close All Windows, Clear Notifications, Clear Status
+- [x] Static commands: Close All Windows, Clear Notifications, Mark All Read, Clear Status
 - [x] Fix `UNUserNotificationCenter` delegate conflict (moved foreground handling to AppDelegate)
 
 ---
 
 ## Phase 7: Visual & UX Design
 
-**Goal:** Design discussion phase (minimal code). Align on UI/UX for all visual elements before building polished implementations.
+**Goal:** Define GhosttyIDE's visual identity. Chosen layout: **Top Bar + Bottom Bar**.
 
-**Topics to design:**
-1. **Workspace & project awareness** — How do I know which project I'm in? Which workspace (window) is active? How do I see/switch all workspaces?
-   - Current tmux approach: status bar with colored pills (magenta = active, yellow = others), session name in title
-   - Native equivalent: tab bar? status bar? title bar integration? Sidebar workspace list?
-   - Per-window naming: how to name/rename workspaces?
-   - Project indicator: always visible? Where?
-2. **Notification panel** — Sidebar? Floating panel? Unread count? Jump-to-latest?
-3. **Status indicators** — Where do per-pane statuses appear? Title bar? Status bar? Inline overlay?
-4. **Command palette appearance** — Centered overlay (VS Code)? Top bar (Spotlight)? Sizing, animations?
-5. **Browser panel integration** — How does it sit in the split tree? URL bar design? Tab bar?
-6. **Overall visual language** — Dark/light theming, spacing, typography, animations
+**Design decisions (see `DESIGN.md`):**
+- Top bar: left = workspace metadata (name, branch, agent, ports, PR), right = project name + notification badge + drag handle
+- Bottom bar: left = workspace pills for current project (accent active, muted others)
+- Project = UI-only grouping (tag + filter, instant switch, no lifecycle management)
+- Lazy surface creation (0 memory until first visit, alive forever after)
+- Three-tier memory: not-visited (0), background (alive), unloaded (deferred Phase 10)
+- Extensible workspace metadata via socket/CLI (ports, PR links, custom key-values)
+- Hidden titlebar (existing Ghostty behavior), navigation chrome provides drag handle
+- Alternative approaches documented: left sidebar, bottom-only status bar
 
-**Deliverable:**
-- Design decisions captured in `DESIGN.md`
-- Implementation tasks generated for visual polish in subsequent phases
+**Architecture:**
+```
+GhosttyIDE Window (single NSWindow)
+├── IDETopBarView      (workspace metadata + project name + notification badge)
+├── Content Area       (active workspace's SplitTree)
+└── IDEBottomBarView   (workspace pills for current project)
+```
 
 Tasks:
-- [ ] Design workspace/project visibility and switching UX
-- [ ] Design notification panel UX
-- [ ] Design status indicator placement and appearance
-- [ ] Design command palette visual treatment
-- [ ] Design browser panel UX
-- [ ] Write `DESIGN.md` with decisions and mockups
+
+- [x] Write `DESIGN.md` with chosen approach + alternatives + mockups
+- [x] Build `IDEWorkspace` model (name, project, color, emoji, metadata, status)
+- [x] Build `WorkspaceController` (workspace list, switching, project filter)
+- [x] Build `GitBranchProvider` (background git branch detection)
+- [x] Add socket commands: workspace.new, switch, next, previous, list, rename, meta.set, meta.clear, project.switch
+- [x] Add CLI commands: ide workspace new|switch|next|previous|list|rename|meta|project-switch
+- [x] Implement `IDETopBarView` (SwiftUI) — top bar with workspace metadata, project name, notification badge, drag handle
+- [x] Implement `IDEBottomBarView` (SwiftUI) — bottom bar with workspace pills, agent/notification indicators
+- [x] Embed bars in `TerminalView.swift` under `#if GHOSTTY_IDE`
+- [x] Implement `NotificationPanelView` (popover) + `PaneNotificationOverlay` (border indicator) + dock badge
+- [x] Build `WorkspaceStatusBridge` — wires git branch, agent state, notifications to active workspace
+- [x] Wire git branch detection to active workspace via `GitBranchProvider`
+- [x] Wire agent state from `StatusStore` to workspace display
+- [x] Integration tests for workspace commands (17 socket + 10 CLI tests)
 
 ---
 
@@ -315,37 +356,21 @@ Tasks:
 **Goal:** IDE-specific keybindings and configuration, layered on top of Ghostty's config.
 
 Tasks:
-- [ ] Add IDE-specific config file: `~/.config/ghosttyide/config` (loaded after Ghostty's config)
-- [ ] IDE-specific keybindings for: command palette, notifications, project switching, browser panel
-- [ ] Extend Ghostty's action system with IDE actions (or use a parallel keybind layer that intercepts before Ghostty)
-- [ ] Config hot-reload for IDE settings
+
+- [x] Single overlay config file: `~/.config/ghosttyide/config` (handles all keybindings, both IDE and Ghostty actions)
+- [x] IDE keybind system: `IDEKeybindConfig` parser, `IDEKeybindRegistry` matcher, `IDEActionDispatcher` executor
+- [x] Vim-aware pane navigation: `VimDetector` uses `ghostty_surface_foreground_pid()` (tcgetpgrp, O(1)) + `proc_name()` — same approach as kitty
+- [x] C API: `ghostty_surface_foreground_pid()` exposed in `ghostty.h` / `embedded.zig` (~5 lines)
+- [x] Intercept in `performKeyEquivalent()` before Ghostty's Zig core (under `#if GHOSTTY_IDE`)
+- [x] `pane.focus-direction` socket/CLI command for neovim mux-navigator integration
+- [x] Neovim `mux-navigator.lua` updated with GhosttyIDE support (detects `GHOSTTYIDE_SOCKET` env var)
+- [x] Karabiner config updated with GhosttyIDE bundle IDs
+- [x] Config hot-reload via `IDEConfigWatcher` (DispatchSource file monitoring)
+- [x] Default keybinding set: workspace (Cmd+N/O/I/1-9), pane (Cmd+T/W/F), resize (Cmd+Shift+HJKL), vim nav (Ctrl+HJKY)
 
 ---
 
-## Phase 9: WebKit Browser Panel
-
-**Goal:** Embed WKWebView as a split pane alongside terminals. Last feature before polish.
-
-```
-ide/Sources/Browser/
-├── BrowserPanelView.swift        # NSView hosting WKWebView
-├── BrowserPanel.swift            # Model: url, title, loading state, history
-├── BrowserSplitNode.swift        # Adapter to fit in Ghostty's split tree
-└── BrowserBar.swift              # Minimal URL bar + back/forward/reload
-```
-
-Tasks:
-- [ ] Extend Ghostty's `SplitTree` to support heterogeneous leaf nodes (terminal OR browser)
-  - This is the one area where you'll likely need to modify `macos/Sources/Features/Splits/SplitTree.swift`
-  - Keep the change minimal: make the leaf type generic or use a protocol
-- [ ] Implement `BrowserPanelView` wrapping `WKWebView`
-- [ ] Handle focus transitions: keyboard focus between terminal and browser panes
-- [ ] Wire into socket commands: `browser.open`, `browser.back`, `browser.forward`, `browser.reload`, `browser.url`
-- [ ] DevTools toggle (WKWebView inspector)
-
----
-
-## Phase 10: Polish & Hardening
+## Phase 9: Polish & Hardening
 
 - [ ] Auto-save on quit, auto-restore on launch
 - [ ] Error handling: socket disconnects, crashed panels, surface failures
@@ -356,11 +381,35 @@ Tasks:
 
 ---
 
+## Phase 10: WebKit Browser Panel
+
+**Goal:** Embed WKWebView as a split pane alongside terminals.
+
+```
+ide/Sources/Browser/
+├── BrowserPanelView.swift        # NSView hosting WKWebView
+├── BrowserPanel.swift            # Model: url, title, loading state, history
+├── BrowserSplitNode.swift        # Adapter to fit in Ghostty's split tree
+└── BrowserBar.swift              # Minimal URL bar + back/forward/reload
+```
+
+Tasks:
+
+- [ ] Extend Ghostty's `SplitTree` to support heterogeneous leaf nodes (terminal OR browser)
+  - This is the one area where you'll likely need to modify `macos/Sources/Features/Splits/SplitTree.swift`
+  - Keep the change minimal: make the leaf type generic or use a protocol
+- [ ] Implement `BrowserPanelView` wrapping `WKWebView`
+- [ ] Handle focus transitions: keyboard focus between terminal and browser panes
+- [ ] Wire into socket commands: `browser.open`, `browser.back`, `browser.forward`, `browser.reload`, `browser.url`
+- [ ] DevTools toggle (WKWebView inspector)
+
+---
+
 ## Rebase Checklist (run after each upstream sync)
 
 1. `git fetch upstream && git rebase upstream/main`
 2. Conflicts should only appear in:
-   - `SplitTree.swift` (if you modified the leaf type — Phase 9)
+   - `SplitTree.swift` (if you modified the leaf type — Phase 10)
    - Xcode project file (if you added targets)
    - `AppDelegate.swift` (if you hooked socket server startup)
 3. Run build: `zig build ... && xcodebuild`
@@ -373,10 +422,15 @@ Tasks:
 
 **Files you will modify in Ghostty's existing code (keep minimal):**
 
-| File | Change | Why |
-|------|--------|-----|
-| `macos/GhosttyKit.xcodeproj` | Add IDE targets | Build system |
-| `macos/Sources/Features/Splits/SplitTree.swift` | Generic leaf type or protocol | Browser panels in split tree |
-| `macos/Sources/App/macOS/AppDelegate.swift` | Hook socket server init | Socket lifecycle |
+| File                                                          | Change                                | Why                                |
+| ------------------------------------------------------------- | ------------------------------------- | ---------------------------------- |
+| `macos/GhosttyKit.xcodeproj`                                  | Add IDE targets                       | Build system                       |
+| `macos/Sources/Features/Splits/SplitTree.swift`               | Generic leaf type or protocol         | Browser panels in split tree       |
+| `macos/Sources/App/macOS/AppDelegate.swift`                   | Hook socket/keybind/watcher init      | Socket + keybind lifecycle         |
+| `macos/Sources/Ghostty/Surface View/SurfaceView_AppKit.swift` | IDE keybind interception + env vars   | `performKeyEquivalent()` hook      |
+| `macos/Sources/Features/Terminal/TerminalView.swift`           | Top/bottom bar embedding              | IDE chrome                         |
+| `macos/Sources/Features/Command Palette/TerminalCommandPalette.swift` | IDE command palette entries    | IDE commands in palette            |
+| `include/ghostty.h`                                           | `ghostty_surface_foreground_pid()`    | Vim detection via tcgetpgrp        |
+| `src/apprt/embedded.zig`                                      | Export foreground PID function         | C API for vim detection            |
 
 **Everything else is new code in `ide/`.** This is what makes rebasing safe.
