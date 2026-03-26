@@ -415,14 +415,33 @@ Tasks:
 
 ---
 
-## Phase 9d: Branding + Project Picker
+## Phase 9d: Branding + Project Picker + Project Rename
 
-**Goal:** Rebrand user-visible strings to "GhosttyIDE" and add `Cmd+P` project picker.
+**Goal:** Rebrand user-visible strings to "GhosttyIDE", add `Cmd+P` project picker with "New Project" creation, and add project rename.
 
-- [ ] `AppBrand.swift` with `#if GHOSTTY_IDE` conditional name constant
-- [ ] Replace hardcoded "Ghostty" in quit dialog, About view, menu items (~6 locations)
-- [ ] Programmatic menu rename in `applicationDidFinishLaunching` (no duplicate XIB)
-- [ ] `Cmd+P` → project picker (list of projects, select to switch)
+Branding:
+- [x] `AppBrand.swift` with `#if GHOSTTY_IDE` conditional name/tagline/URL constants
+- [x] Programmatic menu rename in `applicationDidFinishLaunching` (recursive NSMenu walk, no XIB edit)
+- [x] Replace hardcoded "Ghostty" in quit dialog, About view, update palette entry
+
+Project picker (Cmd+P):
+- [x] `IDEPaletteMode` / `IDEPaletteState` — shared mode flag so command palette shows project options
+- [x] `IDEProjectPickerOptions` — builds project list (live projects, saved-but-not-loaded, "New Project...")
+- [x] Reuses existing `CommandPaletteView` — no separate overlay (fixes click handling, multi-window scoping)
+- [x] Custom placeholder ("Current: X — switch to…"), pre-selects active project alphabetically
+- [x] `projectPicker` keybinding action dispatches `toggle_command_palette` per-surface (not global notification)
+- [x] `CommandPaletteView` extended with `placeholder` and `preselectIndex` parameters
+
+Project rename:
+- [x] `WorkspaceController.renameProject()` — retags all workspaces, updates activeProject + lastActivePerProject
+- [x] `project.rename` socket command + `ide project rename` CLI command
+- [x] "Project: Rename", "Workspace: Rename", "Project: New" command palette entries
+- [x] `projectPicker` + `projectRename` IDE keybinding actions
+- [x] `workspace.remove` socket command (used for test cleanup)
+
+Testing:
+- [x] Integration tests: project.rename (4 socket + 2 CLI), workspace.remove, help list updated
+- [x] Test cleanup section removes test workspaces via `workspace.remove` after all tests
 
 ---
 
