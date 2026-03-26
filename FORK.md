@@ -11,7 +11,20 @@ Build a scriptable, CLI-first IDE on top of Ghostty's terminal emulator core. Th
 - **WebKit browser panels** alongside terminal splits
 - **Named workspaces** with layout persistence
 
-All new code lives in `ide/`. Ghostty's Zig core (`src/`) is never modified. The macOS frontend (`macos/`) is touched minimally.
+## Architecture
+
+- **Zig core (`src/`):** Never modify. Handles VT parsing, terminal state, Metal rendering.
+- **macOS frontend (`macos/`):** Modify minimally. Only touch files under `#if GHOSTTY_IDE` guards.
+- **IDE code (`ide/`):** All new code goes here. Socket server, CLI, browser panels, workspaces.
+
+## Xcode Schemes
+
+| Scheme | Bundle ID | What |
+|---|---|---|
+| **GhosttyIDE** | `com.ghosttyide.app` | IDE fork — compiles `macos/Sources/` + `ide/Sources/` with `GHOSTTY_IDE` flag |
+| **Ghostty** | `com.mitchellh.ghostty` | Stock upstream — kept buildable for rebase safety |
+
+Always use `GhosttyIDE` for this project.
 
 ## Remotes
 
@@ -25,26 +38,24 @@ All new code lives in `ide/`. Ghostty's Zig core (`src/`) is never modified. The
 This fork is designed for easy rebasing on upstream Ghostty:
 
 1. **All new code is additive** — lives in `ide/`, a directory that doesn't exist upstream.
-2. **Minimal edits to existing files** — only `SplitTree.swift` (generic leaf type), `AppDelegate.swift` (socket hook), and the Xcode project (new targets).
+2. **Minimal edits to existing files** — guarded by `#if GHOSTTY_IDE`, plus Xcode project (new targets).
 3. **Rebase workflow:**
    ```bash
    git fetch upstream
    git rebase upstream/main
    ```
 4. **Expected conflicts** are limited to:
-   - `macos/Sources/Features/Splits/SplitTree.swift` (if leaf type was modified)
-   - `macos/GhosttyKit.xcodeproj` (if targets were added)
+   - `macos/Ghostty.xcodeproj` (if targets were added)
    - `macos/Sources/App/macOS/AppDelegate.swift` (if socket hook was added)
+   - `macos/Sources/Features/Splits/SplitTree.swift` (if leaf type was modified — Phase 10)
 
-## Build
+### Rebase Checklist
 
-```bash
-# 1. Build GhosttyKit xcframework
-zig build -Demit-xcframework=true -Dxcframework-target=universal -Doptimize=ReleaseFast
-
-# 2. Build macOS app
-cd macos && xcodebuild -scheme Ghostty -configuration Debug build
-```
+1. `git fetch upstream && git rebase upstream/main`
+2. Resolve conflicts (see expected list above)
+3. Build: see `CLAUDE.md`
+4. Run tests: `python3 ide/Tests/test_socket.py`
+5. Verify socket server: `ide pane list`
 
 ## Directory Structure
 
@@ -52,12 +63,14 @@ cd macos && xcodebuild -scheme Ghostty -configuration Debug build
 ghostty/
 ├── ide/                    # ALL new IDE code
 │   ├── Sources/
-│   │   ├── App/            # IDE app entry, AppDelegate extensions
 │   │   ├── Socket/         # Unix socket server + command protocol
-│   │   ├── CLI/            # CLI binary (separate target)
-│   │   ├── Browser/        # WebKit browser panel
 │   │   ├── Workspace/      # Workspace model + persistence
-│   │   └── Extensions/     # Minimal hooks into Ghostty frontend
+│   │   ├── Keybindings/    # IDE keybind system + vim detection
+│   │   ├── UI/             # Top bar, bottom bar, notification panel
+│   │   ├── Notifications/  # macOS notification center + status store
+│   │   ├── Palette/        # IDE command palette entries
+│   │   └── Branding/       # GhosttyIDE brand constants
+│   ├── CLI/                # Standalone SPM package for `ide` CLI binary
 │   └── Tests/
 ├── macos/                  # Ghostty's existing frontend (touch minimally)
 └── src/                    # Ghostty's Zig core (never touch)

@@ -1,54 +1,47 @@
-# Ghostty IDE Fork
+# Ghostty IDE Fork — Development Reference
 
-This is a fork of [Ghostty](https://github.com/ghostty-org/ghostty) being turned into a CLI-first IDE.
+See `FORK.md` for fork purpose, remotes, rebase strategy, and directory structure.
+See `IDE_PLAN.md` for the phased implementation plan.
+See `DESIGN.md` for visual & UX design decisions (top+bottom bar layout, alternatives).
+See `ide/AGENTS.md` for AI agent integration guide (env vars, Claude Code hooks, status tracking).
+See `AGENTS.md` for upstream Ghostty's agent guide (zig build/test/fmt commands).
+See `HACKING.md` for upstream Ghostty's development guide (Xcode versions, logging, linting).
 
-## Project Goal
+## Architecture Rules
 
-Build a clean, maintainable CLI-first IDE on top of Ghostty's terminal emulator core. Key features:
-- Unix socket server for full scriptability
-- CLI binary to control every aspect of the IDE
-- WebKit browser panels alongside terminal splits
-- Named workspaces with layout persistence
-- Minimal fork diff to allow easy rebasing on upstream Ghostty
-
-## Architecture
-
-- **Zig core (libghostty):** Never modify. Handles VT parsing, terminal state, Metal rendering.
-- **macOS frontend (`macos/`):** Modify minimally. Only touch `SplitTree.swift` (generic leaf type), `AppDelegate.swift` (socket hook), `TerminalController.swift` (workspace tree bridge), and Xcode project (new targets).
-- **IDE code (`ide/`):** All new code goes here. Socket server, CLI, browser panels, workspaces.
-
-## Plan
-
-See `IDE_PLAN.md` for the full phased implementation plan.
-
-## Upstream Tracking
-
-- `upstream` remote = `ghostty-org/ghostty`
-- `origin` remote = your fork
-- Rebase on upstream regularly. Conflicts should be rare since changes are additive.
+- **Zig core (`src/`):** Never modify (except the one `ghostty_surface_foreground_pid` addition in `embedded.zig`).
+- **macOS frontend (`macos/`):** Modify minimally, always behind `#if GHOSTTY_IDE`.
+- **IDE code (`ide/`):** All new code goes here.
 
 ## Build
 
 ```bash
-# Build GhosttyKit xcframework
-zig build -Demit-xcframework=true -Dxcframework-target=universal -Doptimize=ReleaseFast
+# 1. Build GhosttyKit xcframework
+DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer zig build -Demit-xcframework=true -Dxcframework-target=universal -Doptimize=ReleaseFast
 
-# Build macOS app (debug — shows "debug build" warning banner, slower)
-cd macos && xcodebuild -scheme GhosttyIDE -configuration Debug build
-
-# Build macOS app (release — no warning, optimized, for daily use)
+# 2. Build macOS app (release — optimized, for daily use)
 cd macos && xcodebuild -scheme GhosttyIDE -configuration Release build
+
+# 3. Build CLI
+cd ide/CLI && swift build
 ```
 
-Note: The "debug build" warning is driven by the **Zig** build mode (`ghostty_info.mode`), not Xcode's configuration. The `ReleaseFast` flag above already handles it. The Xcode Release configuration adds Swift optimizations and strips debug symbols.
+Note: The "debug build" warning banner is driven by the **Zig** build mode (`ghostty_info.mode`), not Xcode's configuration. The `ReleaseFast` flag above already handles it. Use `-configuration Debug` only when you need Swift debug symbols.
 
-## Key Files (Ghostty's existing architecture)
+### macOS 26 (Tahoe) Zig Workaround
 
-- `include/ghostty.h` — C API header (1.2K lines), the core-frontend interface
-- `src/apprt/action.zig` — 65+ action types dispatched via callbacks
+Zig 0.15.2's linker cannot parse macOS 26 SDK `.tbd` files because Apple dropped `arm64` targets, only listing `arm64e`. Tracked as [Codeberg #31658](https://codeberg.org/ziglang/zig/issues/31658), fix in [PR #31673](https://codeberg.org/ziglang/zig/pulls/31673) (not merged as of 2026-03-26).
+
+**Workaround:** Install Xcode 26.3 alongside 26.4 (download from [developer.apple.com/download/all](https://developer.apple.com/download/all/), extract with `xip -x`, rename to `/Applications/Xcode_26.3.app`). Use `DEVELOPER_DIR` to point Zig at it — no system-wide changes needed. The `xcodebuild` step uses default Xcode 26.4.
+
+**Remove this workaround** once Zig 0.15.3+ or 0.16.0 ships with the arm64e TBD fix.
+
+## Key Files (Ghostty core)
+
+- `include/ghostty.h` — C API header, the core-frontend interface
 - `src/apprt/embedded.zig` — Embedded runtime (what macOS uses)
-- `src/config/Config.zig` — Master config (10.9K lines)
-- `macos/Sources/Ghostty/Ghostty.App.swift` — Swift wrapper for ghostty_app_t, callback bridge
+- `src/config/Config.zig` — Master config
+- `macos/Sources/Ghostty/Ghostty.App.swift` — Swift wrapper for ghostty_app_t
 - `macos/Sources/Ghostty/Surface View/SurfaceView_AppKit.swift` — Metal rendering, input dispatch
 - `macos/Sources/Features/Splits/SplitTree.swift` — Immutable binary split tree
 - `macos/Sources/Features/Terminal/TerminalController.swift` — Window management
@@ -62,76 +55,65 @@ Note: The "debug build" warning is driven by the **Zig** build mode (`ghostty_in
 - `ide/Sources/Socket/CommandProtocol.swift` — Command/response types with AnyCodable
 - `ide/Sources/Socket/Commands/PaneCommands.swift` — pane.list, pane.split, pane.focus, pane.focus-direction, pane.close
 - `ide/Sources/Socket/Commands/AppCommands.swift` — app.version, app.pid, app.quit, help
-- `ide/Sources/Socket/Commands/WorkspaceCommands.swift` — project.save/restore/list/delete/close-all/rename + workspace.new/switch/next/previous/list/rename/remove/meta.set/meta.clear + project.switch
+- `ide/Sources/Socket/Commands/WorkspaceCommands.swift` — project + workspace socket commands
 - `ide/Sources/Socket/Commands/NotifyCommands.swift` — notify.send, notify.list, notify.clear, notify.status
 - `ide/Sources/Socket/Commands/StatusCommands.swift` — status.set, status.clear, status.list
+- `ide/Sources/Socket/Commands/SessionCommands.swift` — session.save, session.info
 - `ide/Sources/Workspace/Workspace.swift` — ProjectFile, ProjectWindowState, PaneSummary data model
 - `ide/Sources/Workspace/WorkspaceStore.swift` — Disk I/O with timestamped files + symlinks
-- `ide/Sources/Workspace/WorkspaceManager.swift` — Bridge live app state to data model (save/restore)
+- `ide/Sources/Workspace/WorkspaceManager.swift` — Bridge live app state to data model
 - `ide/Sources/Workspace/IDEWorkspace.swift` — Live workspace model (name, project, color, emoji, metadata, status)
-- `ide/Sources/Workspace/WorkspaceController.swift` — Workspace list management, switching, project filter, surfaceTree swap via terminalController bridge
+- `ide/Sources/Workspace/WorkspaceController.swift` — Workspace list, switching, project filter, surfaceTree swap
+- `ide/Sources/Workspace/WorkspaceStatusBridge.swift` — Wires git branch, agent state, notifications to workspace
 - `ide/Sources/Workspace/GitBranchProvider.swift` — Background git branch detection
-- `DESIGN.md` — Visual & UX design decisions (top+bottom bar layout, alternatives)
-- `ide/Sources/Workspace/WorkspaceStatusBridge.swift` — Wires git branch, agent state, notifications to active workspace
-- `ide/Sources/Notifications/NotificationManager.swift` — macOS UNUserNotificationCenter bridge + dock badge
+- `ide/Sources/Workspace/IDESessionStore.swift` — Session data model + disk I/O
+- `ide/Sources/Notifications/NotificationManager.swift` — macOS notification center bridge + dock badge
 - `ide/Sources/Notifications/StatusStore.swift` — In-memory per-pane key-value status
-- `ide/Sources/Palette/IDECommandPaletteOptions.swift` — IDE commands injected into Ghostty's command palette
-- `ide/Sources/UI/IDETopBarView.swift` — Top bar: workspace metadata, project name, notification bell + popover
-- `ide/Sources/UI/IDEBottomBarView.swift` — Bottom bar: workspace pills with agent/notification indicators
-- `ide/Sources/UI/NotificationPanelView.swift` — In-app notification panel (popover)
+- `ide/Sources/Keybindings/VimDetector.swift` — Detect vim/neovim via foreground PID
+- `ide/Sources/Keybindings/IDEKeybindConfig.swift` — Parse `~/.config/ghosttyide/config`
+- `ide/Sources/Keybindings/IDEKeybindRegistry.swift` — Match NSEvent to IDEAction
+- `ide/Sources/Keybindings/IDEActionDispatcher.swift` — Execute IDE + Ghostty actions (vim-aware)
+- `ide/Sources/Keybindings/IDEConfigWatcher.swift` — Config file hot-reload via DispatchSource
+- `ide/Sources/UI/IDETopBarView.swift` — Top bar: workspace metadata, project name, notification bell
+- `ide/Sources/UI/IDEBottomBarView.swift` — Bottom bar: workspace pills
+- `ide/Sources/UI/NotificationPanelView.swift` — In-app notification panel
 - `ide/Sources/UI/PaneNotificationOverlay.swift` — Pane border overlay for unread notifications
-- `ide/Sources/UI/IDEProjectPickerView.swift` — Cmd+P project picker (wraps CommandPaletteView)
-- `ide/Sources/Branding/AppBrand.swift` — Centralized brand constants (GhosttyIDE vs Ghostty)
-- `ide/CLI/` — Standalone SPM package for the `ide` CLI binary
-- `ide/CLI/Sources/SocketClient.swift` — POSIX socket client (connect, send JSON, read response)
-- `ide/CLI/Sources/Commands/ProjectCommand.swift` — ide project save|restore|list|delete|close-all|rename
-- `ide/CLI/Sources/Commands/WorkspaceCommand.swift` — ide workspace new|switch|next|previous|list|rename|meta|project-switch
-- `ide/CLI/Sources/Commands/NotifyCommand.swift` — ide notify send|list|clear|status
-- `ide/CLI/Sources/Commands/StatusCommand.swift` — ide status set|clear|list
-- `ide/CLI/Sources/Commands/SessionCommand.swift` — ide session save|info
-- `ide/Sources/Workspace/IDESessionStore.swift` — Session data model + disk I/O (~/.cache/ghosttyide/session.json)
-- `ide/Sources/Socket/Commands/SessionCommands.swift` — session.save, session.info
-- `ide/Sources/Keybindings/VimDetector.swift` — Detect vim/neovim in focused surface via title regex
-- `ide/Sources/Keybindings/IDEKeybindConfig.swift` — Parse `~/.config/ghosttyide/config`, default bindings
-- `ide/Sources/Keybindings/IDEKeybindRegistry.swift` — Match NSEvent → IDEAction
-- `ide/Sources/Keybindings/IDEActionDispatcher.swift` — Execute IDE + Ghostty actions from keybindings (vim-aware pane nav, workspace prompts, Ghostty action forwarding)
-- `ide/Sources/Keybindings/IDEConfigWatcher.swift` — Config file hot-reload via DispatchSource (handles vim-style atomic writes)
-- `ide/Tests/test_socket.py` — Integration tests (socket + CLI + project + workspace + notify + status + keybindings)
+- `ide/Sources/UI/IDEProjectPickerView.swift` — Cmd+P project picker
+- `ide/Sources/Branding/AppBrand.swift` — Brand constants (GhosttyIDE vs Ghostty)
+- `ide/Sources/Palette/IDECommandPaletteOptions.swift` — IDE commands in command palette
+- `ide/CLI/Sources/SocketClient.swift` — POSIX socket client
+- `ide/CLI/Sources/Commands/` — CLI command implementations
+- `ide/Tests/test_socket.py` — Integration tests
+- `DESIGN.md` — Visual & UX design decisions
+
+## Files Modified in Upstream Ghostty
+
+| File | Change |
+|---|---|
+| `macos/Ghostty.xcodeproj` | GhosttyIDE target |
+| `macos/Sources/App/macOS/AppDelegate.swift` | Socket/keybind/watcher init |
+| `macos/Sources/Ghostty/Surface View/SurfaceView_AppKit.swift` | IDE keybind interception + env vars |
+| `macos/Sources/Features/Terminal/TerminalView.swift` | Top/bottom bar + notification env |
+| `macos/Sources/Features/Terminal/TerminalController.swift` | Workspace tree bridge |
+| `macos/Sources/Features/Splits/TerminalSplitTreeView.swift` | Pane notification overlay |
+| `macos/Sources/Features/Command Palette/TerminalCommandPalette.swift` | IDE palette entries |
+| `include/ghostty.h` | `ghostty_surface_foreground_pid()` |
+| `src/apprt/embedded.zig` | Export foreground PID function |
 
 ## CLI Usage
 
 ```bash
-# Build CLI
-cd ide/CLI && swift build
-
-# Run (from ide/CLI directory)
+# Run from ide/CLI directory, or use the built binary at ide/CLI/.build/debug/ide
 swift run ide pane list
 swift run ide pane focus-direction left
 swift run ide app version --json
-swift run ide project save myproject
-swift run ide project list
-swift run ide project restore myproject
-swift run ide project close-all
-swift run ide project rename OLD-NAME NEW-NAME
-swift run ide workspace new main --project ENI --color "#2ECC71" --emoji snake
-swift run ide workspace list
-swift run ide workspace switch main
-swift run ide workspace next
-swift run ide workspace rename main primary
-swift run ide workspace meta set main ports "3000, 8080"
-swift run ide workspace meta clear main ports
-swift run ide workspace project-switch PESAURUS
+swift run ide project save|restore|list|delete|close-all|rename
+swift run ide workspace new|switch|next|previous|list|rename|meta|project-switch
 swift run ide notify send "Title" --body "Body"
-swift run ide notify list
-swift run ide notify status
-swift run ide status set agent idle --pane <uuid>
-swift run ide status list
-swift run ide session save
-swift run ide session info
+swift run ide notify list|clear|status
+swift run ide status set|clear|list
+swift run ide session save|info
 swift run ide raw <command> -a key=value
-
-# Or run the built binary directly
-ide/CLI/.build/debug/ide pane list
 ```
 
 ## Testing
@@ -140,15 +122,6 @@ ide/CLI/.build/debug/ide pane list
 # Integration tests (requires GhosttyIDE running + CLI built)
 python3 ide/Tests/test_socket.py
 
-# Tests cover (108 total):
-# - Socket protocol (13 tests): help, app.version, app.pid, pane.list, pane.focus-direction, error cases
-# - Project (10 tests): save, list, restore, delete, name validation
-# - Workspace (25 tests): new, new with options, empty/missing name, list with field validation,
-#     switch, visited-after-switch, next/previous with round-trip, rename, meta.set/clear/visible-in-list,
-#     project.switch, project.rename (rename, not found, missing args, same name)
-# - Notify (9 tests): send, title only, send with pane, missing/empty title, list, clear,
-#     tracks pane unread, clear resets pane unread
-# - Status (9 tests): set, set another, overwrite, missing key/value, list, list filtered, clear specific/all
-# - Session (4 tests): save, info, info structure, save idempotent
-# - CLI (38 tests): help, app, pane, pane focus-direction, project (incl. rename), workspace, notify, notify status, status, session, raw, --json, error codes
+# 108 tests: socket protocol (13), project (10), workspace (25),
+# notify (9), status (9), session (4), CLI (38)
 ```
