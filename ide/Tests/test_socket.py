@@ -69,10 +69,10 @@ def test_help():
     assert isinstance(commands, list), f"Expected list, got {type(commands)}"
     for required in ["help", "app.version", "app.pid", "pane.list", "pane.split",
                       "project.save", "project.restore", "project.list", "project.delete",
-                      "project.close-all", "project.switch",
+                      "project.close-all", "project.switch", "project.rename",
                       "workspace.new", "workspace.switch", "workspace.next",
                       "workspace.previous", "workspace.list", "workspace.rename",
-                      "workspace.meta.set", "workspace.meta.clear",
+                      "workspace.remove", "workspace.meta.set", "workspace.meta.clear",
                       "notify.send", "notify.list", "notify.clear",
                       "status.set", "status.clear", "status.list",
                       "session.save", "session.info"]:
@@ -433,6 +433,37 @@ def test_project_switch_missing_name():
     assert_eq(resp["ok"], False)
 
 
+def test_project_rename():
+    old_name = TEMP_WS_PROJECT
+    new_name = TEMP_WS_PROJECT + "_renamed"
+    resp = send_command({"command": "project.rename", "args": {"name": old_name, "new_name": new_name}})
+    assert_eq(resp["ok"], True)
+    assert_eq(resp["data"]["old_name"], old_name)
+    assert_eq(resp["data"]["new_name"], new_name)
+    # Verify workspaces now have the new project tag
+    resp2 = send_command({"command": "workspace.list"})
+    ws = next((w for w in resp2["data"]["workspaces"] if w["name"] == TEMP_WORKSPACE), None)
+    assert ws is not None, f"Workspace {TEMP_WORKSPACE} not found after rename"
+    assert_eq(ws["project"], new_name)
+    # Rename back for subsequent tests
+    send_command({"command": "project.rename", "args": {"name": new_name, "new_name": old_name}})
+
+
+def test_project_rename_not_found():
+    resp = send_command({"command": "project.rename", "args": {"name": "nonexistent_proj", "new_name": "foo"}})
+    assert_eq(resp["ok"], False)
+
+
+def test_project_rename_missing_args():
+    resp = send_command({"command": "project.rename"})
+    assert_eq(resp["ok"], False)
+
+
+def test_project_rename_same_name():
+    resp = send_command({"command": "project.rename", "args": {"name": TEMP_WS_PROJECT, "new_name": TEMP_WS_PROJECT}})
+    assert_eq(resp["ok"], False)
+
+
 # --- Notify tests ---
 
 
@@ -749,6 +780,28 @@ def test_cli_project_delete():
     assert "Deleted" in r.stdout
 
 
+def test_cli_project_rename():
+    old_name = TEMP_WS_PROJECT
+    new_name = TEMP_WS_PROJECT + "_clirenamed"
+    r = run_cli("project", "rename", old_name, new_name)
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert new_name in r.stdout
+    # Rename back
+    run_cli("project", "rename", new_name, old_name)
+
+
+def test_cli_project_rename_json():
+    old_name = TEMP_WS_PROJECT
+    new_name = TEMP_WS_PROJECT + "_clirenamed2"
+    r = run_cli("project", "rename", old_name, new_name, "--json")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert data["data"]["new_name"] == new_name
+    # Rename back
+    run_cli("project", "rename", new_name, old_name)
+
+
 def test_cli_notify_send():
     r = run_cli("notify", "send", "CLI Test", "--body", "Hello from CLI")
     assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
@@ -967,6 +1020,10 @@ if __name__ == "__main__":
     test("workspace.meta.clear not found", test_workspace_meta_clear_not_found)
     test("project.switch", test_project_switch)
     test("project.switch missing name", test_project_switch_missing_name)
+    test("project.rename", test_project_rename)
+    test("project.rename not found", test_project_rename_not_found)
+    test("project.rename missing args", test_project_rename_missing_args)
+    test("project.rename same name", test_project_rename_same_name)
 
     print("\n--- Notify tests ---")
     test("notify.send", test_notify_send)
@@ -1012,6 +1069,8 @@ if __name__ == "__main__":
         test("cli project list", test_cli_project_list)
         test("cli project list --json", test_cli_project_list_json)
         test("cli project delete", test_cli_project_delete)
+        test("cli project rename", test_cli_project_rename)
+        test("cli project rename --json", test_cli_project_rename_json)
         test("cli notify send", test_cli_notify_send)
         test("cli notify send --pane", test_cli_notify_send_with_pane)
         test("cli notify list --json", test_cli_notify_list)
@@ -1038,10 +1097,28 @@ if __name__ == "__main__":
         print("  SKIP  CLI not built (run: cd ide/CLI && swift build)")
 
     # close-all kills the app (macOS quits when last window closes), so run last
-    # Note: test workspaces are in-memory only (cleaned on app restart).
-    # Each run uses a unique RUN_ID prefix to avoid collisions.
     print("\n--- Destructive tests (close-all) ---")
     print("  SKIP  project.close-all (closes all windows, app may quit)")
+
+    # --- Cleanup test workspaces ---
+    print("\n--- Cleanup ---")
+    cleanup_count = 0
+    try:
+        # List ALL workspaces (need to check across projects)
+        # Remove workspaces whose names contain the RUN_ID
+        for prefix in [TEMP_WORKSPACE, CLI_TEMP_WS]:
+            # Try removing variants (renamed versions too)
+            for suffix in ["", "2", "_renamed", "_clirenamed", "_clirenamed2", "ren"]:
+                name = prefix + suffix
+                try:
+                    resp = send_command({"command": "workspace.remove", "args": {"name": name}})
+                    if resp.get("ok"):
+                        cleanup_count += 1
+                except Exception:
+                    pass
+        print(f"  Removed {cleanup_count} test workspace(s)")
+    except Exception as e:
+        print(f"  Cleanup warning: {e}")
 
     print(f"\n{'='*40}")
     print(f"Results: {passed} passed, {failed} failed")

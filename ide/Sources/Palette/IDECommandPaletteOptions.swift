@@ -9,7 +9,10 @@ struct IDECommandPaletteOptions {
         onSaveProject: @escaping () -> Void,
         onRestoreProject: @escaping (String) -> Void,
         onDeleteProject: @escaping (String) -> Void,
-        onNewWorkspace: @escaping () -> Void
+        onNewWorkspace: @escaping () -> Void,
+        onRenameWorkspace: @escaping () -> Void,
+        onRenameProject: @escaping () -> Void,
+        onNewProject: @escaping () -> Void
     ) -> [CommandOption] {
         var opts: [CommandOption] = []
 
@@ -57,7 +60,28 @@ struct IDECommandPaletteOptions {
             action: { controller.switchPrevious() }
         ))
 
+        opts.append(CommandOption(
+            title: "Workspace: Rename",
+            description: "Rename the active workspace",
+            leadingIcon: "pencil",
+            action: onRenameWorkspace
+        ))
+
         // --- Project switching ---
+
+        opts.append(CommandOption(
+            title: "Project: New",
+            description: "Create a new project with a 'main' workspace",
+            leadingIcon: "plus.rectangle.on.folder",
+            action: onNewProject
+        ))
+
+        opts.append(CommandOption(
+            title: "Project: Rename",
+            description: "Rename the active project across all its workspaces",
+            leadingIcon: "pencil",
+            action: onRenameProject
+        ))
 
         let allProjects = controller.projects
         for project in allProjects {

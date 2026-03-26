@@ -355,6 +355,7 @@ class AppDelegate: NSObject,
             }
         }
         WorkspaceController.shared.startAutoSave()
+        renameMenusForIDE()
         #endif
     }
 
@@ -437,9 +438,15 @@ class AppDelegate: NSObject,
 
         // We have some visible window. Show an app-wide modal to confirm quitting.
         let alert = NSAlert()
+        #if GHOSTTY_IDE
+        alert.messageText = "Quit \(AppBrand.name)?"
+        alert.informativeText = "All terminal sessions will be terminated."
+        alert.addButton(withTitle: "Close \(AppBrand.name)")
+        #else
         alert.messageText = "Quit Ghostty?"
         alert.informativeText = "All terminal sessions will be terminated."
         alert.addButton(withTitle: "Close Ghostty")
+        #endif
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
         switch alert.runModal() {
@@ -540,7 +547,11 @@ class AppDelegate: NSObject,
             // may want to show this as a sheet on the focused window (especially if we're
             // opening a tab). I'm not sure.
             let alert = NSAlert()
+            #if GHOSTTY_IDE
+            alert.messageText = "Allow \(AppBrand.name) to execute \"\(filename)\"?"
+            #else
             alert.messageText = "Allow Ghostty to execute \"\(filename)\"?"
+            #endif
             alert.addButton(withTitle: "Allow")
             alert.addButton(withTitle: "Cancel")
             alert.alertStyle = .warning
@@ -1433,6 +1444,42 @@ extension AppDelegate: NSMenuItemValidation {
             return true
         }
     }
+
+    // MARK: - IDE Branding
+
+    #if GHOSTTY_IDE
+    /// Programmatically rename menu items from "Ghostty" to "GhosttyIDE".
+    /// Called from applicationDidFinishLaunching to avoid duplicating the XIB.
+    private func renameMenusForIDE() {
+        guard let mainMenu = NSApp.mainMenu else { return }
+        let replacements: [String: String] = [
+            "About Ghostty": "About \(AppBrand.name)",
+            "Make Ghostty the Default Terminal": "Make \(AppBrand.name) the Default Terminal",
+            "Hide Ghostty": "Hide \(AppBrand.name)",
+            "Quit Ghostty": "Quit \(AppBrand.name)",
+            "Ghostty Help": "\(AppBrand.name) Help",
+        ]
+        if let appMenu = mainMenu.items.first {
+            appMenu.title = AppBrand.name
+            appMenu.submenu?.title = AppBrand.name
+        }
+        for item in mainMenu.items {
+            renameMenuItems(in: item.submenu, replacements: replacements)
+        }
+    }
+
+    private func renameMenuItems(in menu: NSMenu?, replacements: [String: String]) {
+        guard let menu = menu else { return }
+        for item in menu.items {
+            if let newTitle = replacements[item.title] {
+                item.title = newTitle
+            }
+            if item.hasSubmenu {
+                renameMenuItems(in: item.submenu, replacements: replacements)
+            }
+        }
+    }
+    #endif
 }
 
 /// Represents the state of the quick terminal controller.

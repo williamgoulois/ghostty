@@ -31,6 +31,8 @@ struct TerminalCommandPaletteView: View {
                         CommandPaletteView(
                             isPresented: $isPresented,
                             backgroundColor: ghosttyConfig.backgroundColor,
+                            placeholder: palettePlaceholder,
+                            preselectIndex: palettePreselectIndex,
                             options: commandOptions
                         )
                         .zIndex(1) // Ensure it's on top
@@ -46,6 +48,9 @@ struct TerminalCommandPaletteView: View {
             // surface view we were overlaid on top of. There's probably a better way
             // to handle the first responder state here but I don't know it.
             if !newValue {
+                #if GHOSTTY_IDE
+                IDEPaletteState.mode = .commands
+                #endif
                 // Has to be on queue because onChange happens on a user-interactive
                 // thread and Xcode is mad about this call on that.
                 DispatchQueue.main.async {
@@ -55,8 +60,40 @@ struct TerminalCommandPaletteView: View {
         }
     }
 
+    private var palettePlaceholder: String {
+        #if GHOSTTY_IDE
+        if IDEPaletteState.mode == .projects {
+            let active = WorkspaceController.shared.activeProject
+            if !active.isEmpty {
+                return "Current: \(active) — switch to…"
+            }
+            return "Switch to a project…"
+        }
+        #endif
+        return "Execute a command…"
+    }
+
+    private var palettePreselectIndex: UInt? {
+        #if GHOSTTY_IDE
+        if IDEPaletteState.mode == .projects {
+            let active = WorkspaceController.shared.activeProject
+            if let idx = WorkspaceController.shared.projects.firstIndex(of: active) {
+                return UInt(idx)
+            }
+        }
+        #endif
+        return nil
+    }
+
     /// All commands available in the command palette, combining update and terminal options.
+    /// In project picker mode (Cmd+P), shows only project options.
     private var commandOptions: [CommandOption] {
+        #if GHOSTTY_IDE
+        if IDEPaletteState.mode == .projects {
+            return IDEProjectPickerOptions.options(onNewProject: { self.handleProjectNew() })
+        }
+        #endif
+
         var options: [CommandOption] = []
         // Updates always appear first
         options.append(contentsOf: updateOptions)
@@ -69,7 +106,10 @@ struct TerminalCommandPaletteView: View {
             onSaveProject: { self.handleProjectSave() },
             onRestoreProject: { name in let _ = try? WorkspaceManager.shared.restore(name: name) },
             onDeleteProject: { name in let _ = try? WorkspaceStore.shared.delete(name: name) },
-            onNewWorkspace: { self.handleWorkspaceNew() }
+            onNewWorkspace: { self.handleWorkspaceNew() },
+            onRenameWorkspace: { self.handleWorkspaceRename() },
+            onRenameProject: { self.handleProjectRename() },
+            onNewProject: { self.handleProjectNew() }
         )
         #else
         let ideOpts: [CommandOption] = []
@@ -103,7 +143,11 @@ struct TerminalCommandPaletteView: View {
         // convey it'll go all the way through.
         let title: String
         if case .updateAvailable = updateViewModel.state {
+            #if GHOSTTY_IDE
+            title = "Update \(AppBrand.name) and Restart"
+            #else
             title = "Update Ghostty and Restart"
+            #endif
         } else {
             title = updateViewModel.text
         }
@@ -180,6 +224,68 @@ struct TerminalCommandPaletteView: View {
             if !name.isEmpty {
                 let project = controller.activeProject.isEmpty ? "default" : controller.activeProject
                 let ws = controller.addWorkspace(name: name, project: project)
+                controller.switchTo(workspace: ws)
+            }
+        }
+    }
+
+    private func handleWorkspaceRename() {
+        let controller = WorkspaceController.shared
+        guard let active = controller.activeWorkspace else { return }
+        let alert = NSAlert()
+        alert.messageText = "Rename Workspace"
+        alert.informativeText = "Enter a new name:"
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        input.stringValue = active.name
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = input
+        if alert.runModal() == .alertFirstButtonReturn {
+            let name = input.stringValue.trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty {
+                controller.renameWorkspace(id: active.id, name: name)
+            }
+        }
+    }
+
+    private func handleProjectRename() {
+        let controller = WorkspaceController.shared
+        let current = controller.activeProject
+        guard !current.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = "Rename Project"
+        alert.informativeText = "Rename '\(current)' to:"
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        input.stringValue = current
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = input
+        if alert.runModal() == .alertFirstButtonReturn {
+            let name = input.stringValue.trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty {
+                let _ = controller.renameProject(from: current, to: name)
+            }
+        }
+    }
+
+    private func handleProjectNew() {
+        let controller = WorkspaceController.shared
+        let alert = NSAlert()
+        alert.messageText = "New Project"
+        alert.informativeText = "Enter a name for the project:"
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        input.placeholderString = "PROJECT-NAME"
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = input
+        if alert.runModal() == .alertFirstButtonReturn {
+            let name = input.stringValue.trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty {
+                let ws = controller.addWorkspace(name: "main", project: name)
+                controller.switchProject(name: name)
                 controller.switchTo(workspace: ws)
             }
         }

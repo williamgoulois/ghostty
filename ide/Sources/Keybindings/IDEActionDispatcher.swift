@@ -68,6 +68,14 @@ final class IDEActionDispatcher {
             }
             return true
 
+        case .projectPicker:
+            IDEPaletteState.mode = .projects
+            return executeGhosttyAction("toggle_command_palette", surfaceView: surfaceView)
+
+        case .projectRename:
+            promptRenameProject()
+            return true
+
         case .ghosttyAction(let actionStr):
             return executeGhosttyAction(actionStr, surfaceView: surfaceView)
         }
@@ -141,6 +149,31 @@ final class IDEActionDispatcher {
             project: project.isEmpty ? "default" : project
         )
         WorkspaceController.shared.switchTo(workspace: ws)
+    }
+
+    /// Show a dialog to rename the current project.
+    private func promptRenameProject() {
+        let controller = WorkspaceController.shared
+        let current = controller.activeProject
+        guard !current.isEmpty else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Rename Project"
+        alert.informativeText = "Rename '\(current)' to:"
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        input.stringValue = current
+        alert.accessoryView = input
+        alert.window.initialFirstResponder = input
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let name = input.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+
+        let _ = controller.renameProject(from: current, to: name)
     }
 
     /// Show a dialog to rename the current workspace.

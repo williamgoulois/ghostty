@@ -4,7 +4,7 @@ import Foundation
 struct Project: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Manage projects (save/restore window layouts).",
-        subcommands: [Save.self, Restore.self, List.self, Delete.self, CloseAll.self]
+        subcommands: [Save.self, Restore.self, List.self, Delete.self, CloseAll.self, Rename.self]
     )
 
     struct Save: ParsableCommand {
@@ -122,6 +122,37 @@ struct Project: ParsableCommand {
             }
             if resp.ok {
                 print("Deleted project '\(name)'")
+            } else {
+                Output.print(response: resp, json: false)
+                throw ExitCode.failure
+            }
+        }
+    }
+
+    struct Rename: ParsableCommand {
+        static let configuration = CommandConfiguration(abstract: "Rename a live project (change the tag on all its workspaces).")
+
+        @Argument(help: "Current project name.")
+        var name: String
+
+        @Argument(help: "New project name.")
+        var newName: String
+
+        @OptionGroup var global: GhosttyIDE.GlobalOptions
+
+        func run() throws {
+            let path = try global.resolvedSocketPath()
+            let resp = try SocketClient.send(
+                command: "project.rename",
+                args: ["name": name, "new_name": newName],
+                socketPath: path
+            )
+            if global.json {
+                Output.print(response: resp, json: true)
+                return
+            }
+            if resp.ok {
+                print("Renamed project '\(name)' → '\(newName)'")
             } else {
                 Output.print(response: resp, json: false)
                 throw ExitCode.failure

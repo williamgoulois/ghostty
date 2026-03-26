@@ -21,6 +21,8 @@ enum IDEAction: Equatable {
     case notificationsToggle
     case notificationsJumpUnread
     case projectSwitch
+    case projectPicker
+    case projectRename
     case ghosttyAction(String) // raw Ghostty action string
 }
 
@@ -144,6 +146,8 @@ enum IDEKeybindConfig {
         case "notifications_toggle": return .notificationsToggle
         case "notifications_jump_unread": return .notificationsJumpUnread
         case "project_switch": return .projectSwitch
+        case "project_picker": return .projectPicker
+        case "project_rename": return .projectRename
         default: return nil
         }
     }
@@ -189,6 +193,7 @@ enum IDEKeybindConfig {
         b.append(bind([.command, .shift], "comma", .ghosttyAction("reload_config")))
 
         // IDE UI (IDE actions)
+        b.append(bind(.command, "p", .projectPicker))
         b.append(bind([.command, .shift], "m", .notificationsToggle))
         b.append(bind([.command, .shift], "u", .notificationsJumpUnread))
 

@@ -60,6 +60,8 @@ struct CommandOption: Identifiable, Hashable {
 struct CommandPaletteView: View {
     @Binding var isPresented: Bool
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
+    var placeholder: String = "Execute a command…"
+    var preselectIndex: UInt? = nil
     var options: [CommandOption]
     @State private var query = ""
     @State private var selectedIndex: UInt?
@@ -105,7 +107,7 @@ struct CommandPaletteView: View {
         }
 
         VStack(alignment: .leading, spacing: 0) {
-            CommandPaletteQuery(query: $query, isTextFieldFocused: _isTextFieldFocused) { event in
+            CommandPaletteQuery(query: $query, placeholder: placeholder, isTextFieldFocused: _isTextFieldFocused) { event in
                 switch event {
                 case .exit:
                     isPresented = false
@@ -198,6 +200,9 @@ struct CommandPaletteView: View {
             // Fixes: https://github.com/ghostty-org/ghostty/issues/8497
             // Also fixes initial focus while animating.
             isTextFieldFocused = isPresented
+            if let idx = preselectIndex, idx < options.count {
+                selectedIndex = idx
+            }
         }
     }
 
@@ -231,11 +236,13 @@ struct CommandPaletteView: View {
 /// The text field for building the query for the command palette.
 private struct CommandPaletteQuery: View {
     @Binding var query: String
+    var placeholder: String
     var onEvent: ((KeyboardEvent) -> Void)?
     @FocusState private var isTextFieldFocused: Bool
 
-    init(query: Binding<String>, isTextFieldFocused: FocusState<Bool>, onEvent: ((KeyboardEvent) -> Void)? = nil) {
+    init(query: Binding<String>, placeholder: String = "Execute a command…", isTextFieldFocused: FocusState<Bool>, onEvent: ((KeyboardEvent) -> Void)? = nil) {
         _query = query
+        self.placeholder = placeholder
         self.onEvent = onEvent
         _isTextFieldFocused = isTextFieldFocused
     }
@@ -266,7 +273,7 @@ private struct CommandPaletteQuery: View {
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
 
-            TextField("Execute a command…", text: $query)
+            TextField(placeholder, text: $query)
                 .padding()
                 .font(.system(size: 20, weight: .light))
                 .frame(height: 48)

@@ -139,6 +139,17 @@ extension IDECommandRouter {
             return .success(["old_name": name, "new_name": newName])
         }
 
+        register("workspace.remove") { command in
+            guard let name = command.args?["name"]?.value as? String, !name.isEmpty else {
+                return .failure("Missing workspace name")
+            }
+            guard let ws = WorkspaceController.shared.workspace(byName: name) else {
+                return .failure("Workspace not found: \(name)")
+            }
+            WorkspaceController.shared.removeWorkspace(id: ws.id)
+            return .success(["name": name])
+        }
+
         register("workspace.meta.set") { command in
             guard let workspace = command.args?["workspace"]?.value as? String, !workspace.isEmpty,
                   let key = command.args?["key"]?.value as? String, !key.isEmpty,
@@ -163,6 +174,17 @@ extension IDECommandRouter {
                 return .success(["workspace": workspace, "key": key])
             }
             return .failure("Workspace not found: \(workspace)")
+        }
+
+        register("project.rename") { command in
+            guard let name = command.args?["name"]?.value as? String, !name.isEmpty,
+                  let newName = command.args?["new_name"]?.value as? String, !newName.isEmpty else {
+                return .failure("Missing name or new_name")
+            }
+            if WorkspaceController.shared.renameProject(from: name, to: newName) {
+                return .success(["old_name": name, "new_name": newName])
+            }
+            return .failure("Project not found: \(name)")
         }
 
         register("project.switch") { command in

@@ -226,6 +226,22 @@ final class WorkspaceController: ObservableObject {
         }
     }
 
+    // MARK: - Project Rename
+
+    /// Rename a project (change the tag on all its workspaces).
+    func renameProject(from oldName: String, to newName: String) -> Bool {
+        guard !newName.isEmpty, oldName != newName else { return false }
+        guard workspaces.contains(where: { $0.project == oldName }) else { return false }
+        for ws in workspaces where ws.project == oldName {
+            ws.project = newName
+        }
+        if activeProject == oldName { activeProject = newName }
+        if let lastId = lastActivePerProject.removeValue(forKey: oldName) {
+            lastActivePerProject[newName] = lastId
+        }
+        return true
+    }
+
     // MARK: - Metadata
 
     /// Set extensible metadata on a workspace.

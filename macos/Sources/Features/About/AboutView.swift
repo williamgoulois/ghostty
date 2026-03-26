@@ -3,7 +3,11 @@ import SwiftUI
 struct AboutView: View {
     @Environment(\.openURL) var openURL
 
+    #if GHOSTTY_IDE
+    private var githubURL: URL? { AppBrand.githubURL }
+    #else
     private let githubURL = URL(string: "https://github.com/ghostty-org/ghostty")
+    #endif
     private let docsURL = URL(string: "https://ghostty.org/docs")
 
     /// Read the commit from the bundle.
@@ -47,6 +51,17 @@ struct AboutView: View {
 
             VStack(alignment: .center, spacing: 32) {
                 VStack(alignment: .center, spacing: 8) {
+                    #if GHOSTTY_IDE
+                    Text(AppBrand.name)
+                        .bold()
+                        .font(.title)
+                    Text(AppBrand.tagline)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .font(.caption)
+                        .tint(.secondary)
+                        .opacity(0.8)
+                    #else
                     Text("Ghostty")
                         .bold()
                         .font(.title)
@@ -56,6 +71,7 @@ struct AboutView: View {
                         .font(.caption)
                         .tint(.secondary)
                         .opacity(0.8)
+                    #endif
                 }
                 .textSelection(.enabled)
 
