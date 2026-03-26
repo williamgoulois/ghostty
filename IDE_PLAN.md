@@ -221,7 +221,31 @@ Testing:
 
 ---
 
-## Phase 9e: Visual Polish
+## Phase 9e: Empty State UX
+
+**Goal:** Define what the user sees when launching with no workspaces (fresh install or after closing everything).
+
+**Current behavior (after stale project fix):** Top bar shows "No workspace", no project badge, bottom bar is empty. Terminal pane works but has no workspace association.
+
+**Option A — Auto-bootstrap (recommended):**
+- On launch, if `workspaces.isEmpty` after session restore, auto-create a "default" workspace in a "default" project for the initial terminal surface
+- User always has at least one workspace — closer to tmux behavior (always in a session)
+- `cmd+n` still creates additional workspaces; the auto-created one is just a starting point
+- If the user renames the project/workspace, the rename sticks across restarts
+
+**Option B — Welcome prompt:**
+- Show a lightweight overlay or auto-open the project picker when no workspaces exist
+- User picks or creates a project before the terminal is associated with a workspace
+- More explicit but adds friction to first launch
+
+Tasks:
+- [ ] Decide approach (A or B)
+- [ ] Implement chosen approach
+- [ ] Ensure closing the auto-created workspace still works cleanly (no stale state)
+
+---
+
+## Phase 9f: Visual Polish
 
 **Goal:** Refine bars, pills, and chrome for daily-driver quality.
 
@@ -233,7 +257,7 @@ Testing:
 
 ---
 
-## Phase 9f: Logging + Error Handling
+## Phase 9g: Logging + Error Handling
 
 **Goal:** Add structured logging across all IDE components and harden the socket server.
 
@@ -243,7 +267,7 @@ Testing:
 
 ---
 
-## Phase 9g: Workflow Tests
+## Phase 9h: Workflow Tests
 
 **Goal:** Replace granular unit tests with real-workflow scenario tests.
 
@@ -255,7 +279,7 @@ Testing:
 
 ---
 
-## Phase 9h: IDE Framework Module (Optional)
+## Phase 9i: IDE Framework Module (Optional)
 
 **Goal:** Extract `ide/Sources/` into a separate Swift framework target for proper module boundaries.
 

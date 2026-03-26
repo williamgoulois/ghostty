@@ -64,6 +64,27 @@ struct IDECommandPaletteOptions {
         ))
 
         opts.append(CommandOption(
+            title: "Workspace: Move Pane to New Workspace",
+            description: "Break the focused pane into its own workspace",
+            leadingIcon: "arrow.up.right.square",
+            action: { controller.breakPaneToNewWorkspace() }
+        ))
+
+        opts.append(CommandOption(
+            title: "Workspace: Move Before",
+            description: "Move the active workspace one position backward",
+            leadingIcon: "arrow.left",
+            action: { controller.movePrevious() }
+        ))
+
+        opts.append(CommandOption(
+            title: "Workspace: Move After",
+            description: "Move the active workspace one position forward",
+            leadingIcon: "arrow.right",
+            action: { controller.moveNext() }
+        ))
+
+        opts.append(CommandOption(
             title: "Workspace: Rename",
             description: "Rename the active workspace",
             leadingIcon: "pencil",

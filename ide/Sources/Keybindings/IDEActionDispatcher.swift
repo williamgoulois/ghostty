@@ -33,6 +33,18 @@ final class IDEActionDispatcher {
             WorkspaceController.shared.switchToIndex(index)
             return true
 
+        case .workspaceMoveNext:
+            WorkspaceController.shared.moveNext()
+            return true
+
+        case .workspaceMovePrevious:
+            WorkspaceController.shared.movePrevious()
+            return true
+
+        case .workspaceBreakPane:
+            WorkspaceController.shared.breakPaneToNewWorkspace()
+            return true
+
         case .workspaceClose:
             if let active = WorkspaceController.shared.activeWorkspace {
                 WorkspaceController.shared.removeWorkspace(id: active.id)
@@ -148,7 +160,11 @@ final class IDEActionDispatcher {
             name: name,
             project: project.isEmpty ? "default" : project
         )
-        WorkspaceController.shared.switchTo(workspace: ws)
+        // Defer switchTo so it fires after the NSAlert modal window is fully torn down,
+        // ensuring the terminal surface gets proper focus.
+        DispatchQueue.main.async {
+            WorkspaceController.shared.switchTo(workspace: ws)
+        }
     }
 
     /// Show a dialog to rename the current project.

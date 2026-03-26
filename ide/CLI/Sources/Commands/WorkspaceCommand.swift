@@ -6,6 +6,7 @@ struct Workspace: ParsableCommand {
         abstract: "Manage live workspaces.",
         subcommands: [
             New.self, Switch.self, Next.self, Previous.self,
+            MoveNext.self, MovePrevious.self, BreakPane.self,
             List.self, Rename.self, Meta.self, ProjectSwitch.self,
         ]
     )
@@ -119,6 +120,81 @@ struct Workspace: ParsableCommand {
             }
             let name = data["name"] as? String ?? ""
             print("Switched to workspace '\(name)'")
+        }
+    }
+
+    struct MoveNext: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "move-next",
+            abstract: "Move the active workspace one position forward."
+        )
+
+        @OptionGroup var global: GhosttyIDE.GlobalOptions
+
+        func run() throws {
+            let path = try global.resolvedSocketPath()
+            let resp = try SocketClient.send(command: "workspace.move-next", socketPath: path)
+            if global.json {
+                Output.print(response: resp, json: true)
+                return
+            }
+            guard resp.ok, let data = resp.data as? [String: Any] else {
+                Output.print(response: resp, json: false)
+                if !resp.ok { throw ExitCode.failure }
+                return
+            }
+            let name = data["name"] as? String ?? ""
+            print("Moved workspace '\(name)' forward")
+        }
+    }
+
+    struct MovePrevious: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "move-previous",
+            abstract: "Move the active workspace one position backward."
+        )
+
+        @OptionGroup var global: GhosttyIDE.GlobalOptions
+
+        func run() throws {
+            let path = try global.resolvedSocketPath()
+            let resp = try SocketClient.send(command: "workspace.move-previous", socketPath: path)
+            if global.json {
+                Output.print(response: resp, json: true)
+                return
+            }
+            guard resp.ok, let data = resp.data as? [String: Any] else {
+                Output.print(response: resp, json: false)
+                if !resp.ok { throw ExitCode.failure }
+                return
+            }
+            let name = data["name"] as? String ?? ""
+            print("Moved workspace '\(name)' backward")
+        }
+    }
+
+    struct BreakPane: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "break-pane",
+            abstract: "Move the focused pane to a new workspace."
+        )
+
+        @OptionGroup var global: GhosttyIDE.GlobalOptions
+
+        func run() throws {
+            let path = try global.resolvedSocketPath()
+            let resp = try SocketClient.send(command: "workspace.break-pane", socketPath: path)
+            if global.json {
+                Output.print(response: resp, json: true)
+                return
+            }
+            guard resp.ok, let data = resp.data as? [String: Any] else {
+                Output.print(response: resp, json: false)
+                if !resp.ok { throw ExitCode.failure }
+                return
+            }
+            let name = data["workspace"] as? String ?? ""
+            print("Moved pane to new workspace '\(name)'")
         }
     }
 

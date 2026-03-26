@@ -122,6 +122,24 @@ extension IDECommandRouter {
             return .success(["name": active?.name ?? ""])
         }
 
+        register("workspace.move-next") { _ in
+            WorkspaceController.shared.moveNext()
+            let active = WorkspaceController.shared.activeWorkspace
+            return .success(["name": active?.name ?? ""])
+        }
+
+        register("workspace.move-previous") { _ in
+            WorkspaceController.shared.movePrevious()
+            let active = WorkspaceController.shared.activeWorkspace
+            return .success(["name": active?.name ?? ""])
+        }
+
+        register("workspace.break-pane") { _ in
+            WorkspaceController.shared.breakPaneToNewWorkspace()
+            let active = WorkspaceController.shared.activeWorkspace
+            return .success(["workspace": active?.name ?? ""])
+        }
+
         register("workspace.list") { _ in
             let items = WorkspaceController.shared.listAsDict()
             return .success(["workspaces": items])

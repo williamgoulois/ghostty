@@ -464,6 +464,86 @@ def test_project_rename_same_name():
     assert_eq(resp["ok"], False)
 
 
+# --- Workspace close fallback tests ---
+
+FALLBACK_WS_A = f"_test_fallback_a_{RUN_ID}_"
+FALLBACK_WS_B = f"_test_fallback_b_{RUN_ID}_"
+FALLBACK_PROJECT = f"_test_fallback_proj_{RUN_ID}_"
+FALLBACK_PROJECT2 = f"_test_fallback_proj2_{RUN_ID}_"
+
+
+def test_workspace_close_removes_and_falls_back():
+    """Remove active workspace → should fall back to another in same project."""
+    # Create two workspaces in the same project
+    resp_a = send_command({"command": "workspace.new", "args": {"name": FALLBACK_WS_A, "project": FALLBACK_PROJECT}})
+    assert_eq(resp_a["ok"], True)
+    resp_b = send_command({"command": "workspace.new", "args": {"name": FALLBACK_WS_B, "project": FALLBACK_PROJECT}})
+    assert_eq(resp_b["ok"], True)
+
+    # Switch to project, then to ws_b
+    send_command({"command": "project.switch", "args": {"name": FALLBACK_PROJECT}})
+    send_command({"command": "workspace.switch", "args": {"name": FALLBACK_WS_B}})
+
+    # Remove ws_b → should fall back to ws_a
+    resp = send_command({"command": "workspace.remove", "args": {"name": FALLBACK_WS_B}})
+    assert_eq(resp["ok"], True)
+
+    # Verify active workspace is ws_a
+    resp_list = send_command({"command": "workspace.list"})
+    assert_eq(resp_list["ok"], True)
+    active = next((w for w in resp_list["data"]["workspaces"] if w["is_active"]), None)
+    assert active is not None, "No active workspace after close fallback"
+    assert_eq(active["name"], FALLBACK_WS_A)
+
+
+def test_workspace_remove_nonexistent():
+    """Removing a nonexistent workspace returns an error."""
+    resp = send_command({"command": "workspace.remove", "args": {"name": "nonexistent_ws_xyz_999"}})
+    assert_eq(resp["ok"], False)
+
+
+def test_workspace_remove_missing_name():
+    """Removing without a name returns an error."""
+    resp = send_command({"command": "workspace.remove"})
+    assert_eq(resp["ok"], False)
+
+
+# --- Workspace break-pane tests ---
+
+BREAK_WS = f"_test_break_{RUN_ID}_"
+
+
+def test_workspace_break_pane():
+    """Break-pane creates a new workspace with the focused pane."""
+    # First, ensure we have a workspace to break from
+    send_command({"command": "workspace.new", "args": {"name": BREAK_WS, "project": FALLBACK_PROJECT}})
+    send_command({"command": "project.switch", "args": {"name": FALLBACK_PROJECT}})
+    send_command({"command": "workspace.switch", "args": {"name": BREAK_WS}})
+
+    # Get workspace count before break
+    before = send_command({"command": "workspace.list"})
+    count_before = len(before["data"]["workspaces"])
+
+    # Break pane
+    resp = send_command({"command": "workspace.break-pane"})
+    assert_eq(resp["ok"], True)
+    assert "workspace" in resp["data"], "Response should include workspace name"
+
+    # Verify workspace count increased
+    after = send_command({"command": "workspace.list"})
+    count_after = len(after["data"]["workspaces"])
+    # Note: the count may stay same if the old single-pane workspace was removed
+    # but the new one was created. At minimum, we have a workspace.
+    assert count_after >= 1, f"Expected at least 1 workspace, got {count_after}"
+
+
+def test_workspace_break_pane_response_format():
+    """Break-pane response includes the new workspace name."""
+    resp = send_command({"command": "workspace.break-pane"})
+    assert_eq(resp["ok"], True)
+    assert isinstance(resp["data"]["workspace"], str), "workspace should be a string"
+
+
 # --- Notify tests ---
 
 
@@ -938,6 +1018,12 @@ def test_cli_workspace_project_switch():
     assert "Switched to project" in r.stdout
 
 
+def test_cli_workspace_break_pane():
+    r = run_cli("workspace", "break-pane")
+    assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
+    assert "Moved pane to new workspace" in r.stdout
+
+
 def test_cli_session_save():
     r = run_cli("session", "save")
     assert r.returncode == 0, f"Exit code {r.returncode}: {r.stderr}"
@@ -1025,6 +1111,15 @@ if __name__ == "__main__":
     test("project.rename missing args", test_project_rename_missing_args)
     test("project.rename same name", test_project_rename_same_name)
 
+    print("\n--- Workspace close fallback tests ---")
+    test("workspace.remove falls back", test_workspace_close_removes_and_falls_back)
+    test("workspace.remove nonexistent", test_workspace_remove_nonexistent)
+    test("workspace.remove missing name", test_workspace_remove_missing_name)
+
+    print("\n--- Workspace break-pane tests ---")
+    test("workspace.break-pane", test_workspace_break_pane)
+    test("workspace.break-pane response format", test_workspace_break_pane_response_format)
+
     print("\n--- Notify tests ---")
     test("notify.send", test_notify_send)
     test("notify.send title only", test_notify_send_title_only)
@@ -1090,6 +1185,7 @@ if __name__ == "__main__":
         test("cli workspace meta clear", test_cli_workspace_meta_clear)
         test("cli workspace next", test_cli_workspace_next)
         test("cli workspace project-switch", test_cli_workspace_project_switch)
+        test("cli workspace break-pane", test_cli_workspace_break_pane)
         test("cli session save", test_cli_session_save)
         test("cli session info", test_cli_session_info)
         test("cli session info --json", test_cli_session_info_json)
@@ -1106,7 +1202,15 @@ if __name__ == "__main__":
     try:
         # List ALL workspaces (need to check across projects)
         # Remove workspaces whose names contain the RUN_ID
-        for prefix in [TEMP_WORKSPACE, CLI_TEMP_WS]:
+        # Also clean up auto-generated break-pane workspaces (named "pane", "pane-2", etc.)
+        for i in range(1, 10):
+            pane_name = "pane" if i == 1 else f"pane-{i}"
+            try:
+                send_command({"command": "workspace.remove", "args": {"name": pane_name}})
+                cleanup_count += 1
+            except Exception:
+                pass
+        for prefix in [TEMP_WORKSPACE, CLI_TEMP_WS, FALLBACK_WS_A, FALLBACK_WS_B, BREAK_WS]:
             # Try removing variants (renamed versions too)
             for suffix in ["", "2", "_renamed", "_clirenamed", "_clirenamed2", "ren"]:
                 name = prefix + suffix

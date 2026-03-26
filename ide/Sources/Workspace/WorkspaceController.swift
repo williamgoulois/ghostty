@@ -71,7 +71,14 @@ final class WorkspaceController: ObservableObject {
         emoji: String? = nil
     ) -> IDEWorkspace {
         let ws = IDEWorkspace(name: name, project: project, color: color, emoji: emoji)
-        workspaces.append(ws)
+
+        // Insert after the active workspace so new workspaces appear next to the current one.
+        if let active = activeWorkspace,
+           let idx = workspaces.firstIndex(where: { $0.id == active.id }) {
+            workspaces.insert(ws, at: workspaces.index(after: idx))
+        } else {
+            workspaces.append(ws)
+        }
 
         // If this is the first workspace or matches active project with no active,
         // set the project filter.
@@ -108,6 +115,34 @@ final class WorkspaceController: ObservableObject {
     func renameWorkspace(id: UUID, name: String) {
         guard let ws = workspaces.first(where: { $0.id == id }) else { return }
         ws.name = name
+    }
+
+    // MARK: - Close with Fallback
+
+    /// Called when the active workspace's tree becomes empty (last pane closed).
+    /// Removes the workspace and switches to a fallback. Returns `true` if a
+    /// fallback was found (caller should NOT close the window).
+    func closeActiveWorkspaceOrFallback() -> Bool {
+        guard activeWorkspace != nil else { return false }
+
+        // Clear undo to prevent stale entries referencing removed workspace
+        terminalController?.undoManager?.removeAllActions()
+
+        // removeWorkspace already handles fallback: picks adjacent in filtered list
+        removeWorkspace(id: activeWorkspace!.id)
+
+        // If removeWorkspace found a fallback, activeWorkspace is non-nil
+        if activeWorkspace != nil { return true }
+
+        // No workspaces in current project — try switching to another project
+        if let other = workspaces.first {
+            activeProject = other.project
+            switchTo(workspace: other)
+            return true
+        }
+
+        activeProject = ""
+        return false // no workspaces left, let window close
     }
 
     // MARK: - Switching
@@ -172,6 +207,13 @@ final class WorkspaceController: ObservableObject {
             let surface = Ghostty.SurfaceView(ghostty_app, baseConfig: nil)
             ctrl.surfaceTree = .init(view: surface)
             workspace.splitTree = ctrl.surfaceTree
+            // Match the "revisiting" branch: set focusedSurface + moveFocus together
+            // in an async block so SwiftUI has a chance to lay out the new tree first.
+            // moveFocus retries with backoff until .window is set.
+            DispatchQueue.main.async {
+                ctrl.focusedSurface = surface
+                Ghostty.moveFocus(to: surface)
+            }
         }
     }
 
@@ -198,6 +240,82 @@ final class WorkspaceController: ObservableObject {
         guard !filtered.isEmpty, let index = activeIndex else { return }
         let prev = (index - 1 + filtered.count) % filtered.count
         switchTo(workspace: filtered[prev])
+    }
+
+    /// Move the active workspace one position forward in the filtered list.
+    func moveNext() {
+        let filtered = filteredWorkspaces
+        guard filtered.count > 1, let index = activeIndex else { return }
+        let nextIndex = (index + 1) % filtered.count
+        // Swap positions in the global workspaces array
+        guard let globalA = workspaces.firstIndex(where: { $0.id == filtered[index].id }),
+              let globalB = workspaces.firstIndex(where: { $0.id == filtered[nextIndex].id }) else { return }
+        workspaces.swapAt(globalA, globalB)
+    }
+
+    /// Move the active workspace one position backward in the filtered list.
+    func movePrevious() {
+        let filtered = filteredWorkspaces
+        guard filtered.count > 1, let index = activeIndex else { return }
+        let prevIndex = (index - 1 + filtered.count) % filtered.count
+        // Swap positions in the global workspaces array
+        guard let globalA = workspaces.firstIndex(where: { $0.id == filtered[index].id }),
+              let globalB = workspaces.firstIndex(where: { $0.id == filtered[prevIndex].id }) else { return }
+        workspaces.swapAt(globalA, globalB)
+    }
+
+    // MARK: - Break Pane
+
+    /// Move the focused pane to a new workspace. Like tmux break-pane.
+    func breakPaneToNewWorkspace() {
+        guard let ctrl = terminalController,
+              let focused = ctrl.focusedSurface,
+              let node = ctrl.surfaceTree.root?.node(view: focused) else { return }
+
+        // No-op if the workspace has only one pane (nothing to break out of)
+        if !ctrl.surfaceTree.isSplit { return }
+
+        // Compute the tree after removing the focused pane
+        let newCurrentTree = ctrl.surfaceTree.removing(node)
+
+        // Auto-generate workspace name
+        let baseName = "pane"
+        var name = baseName
+        var counter = 1
+        while workspaces.contains(where: { $0.name == name }) {
+            counter += 1
+            name = "\(baseName)-\(counter)"
+        }
+
+        let project = activeProject.isEmpty ? "default" : activeProject
+
+        // Update the LIVE controller tree so the surface is removed from the
+        // current workspace. This is critical: switchTo() saves ctrl.surfaceTree
+        // to the outgoing workspace, so the live tree must already exclude the
+        // extracted pane. If the tree is now empty, surfaceTreeDidChange will
+        // fire but the #if GHOSTTY_IDE guard prevents window closure.
+        ctrl.surfaceTree = newCurrentTree
+
+        // Update focusedSurface to a remaining pane so switchTo() saves valid
+        // focus state for the outgoing workspace.
+        if let remainingRoot = newCurrentTree.root {
+            ctrl.focusedSurface = remainingRoot.leftmostLeaf()
+        }
+        let oldWorkspace = activeWorkspace
+
+        // Create new workspace with the extracted surface
+        let ws = addWorkspace(name: name, project: project)
+        ws.splitTree = SplitTree(view: focused)
+        ws.focusedSurface = focused
+
+        // Switch to the new workspace (handles live tree swap + focus)
+        switchTo(workspace: ws)
+
+        // If old workspace is now empty, remove it
+        if let old = oldWorkspace, newCurrentTree.isEmpty {
+            removeWorkspace(id: old.id)
+        }
+
     }
 
     /// Switch to workspace by 1-based index (within active project).
@@ -412,7 +530,7 @@ final class WorkspaceController: ObservableObject {
             }
         }
 
-        if !session.activeProject.isEmpty {
+        if !session.activeProject.isEmpty && !workspaces.isEmpty {
             activeProject = session.activeProject
         }
 

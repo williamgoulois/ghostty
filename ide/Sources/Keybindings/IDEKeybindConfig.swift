@@ -16,6 +16,9 @@ enum IDEAction: Equatable {
     case workspacePrevious
     case workspaceGoto(Int) // 1-9
     case workspaceClose
+    case workspaceMoveNext
+    case workspaceMovePrevious
+    case workspaceBreakPane
     case workspaceRename
     case focusDirection(IDEDirection) // vim-aware pane navigation
     case notificationsToggle
@@ -142,6 +145,9 @@ enum IDEKeybindConfig {
         case "workspace_next": return .workspaceNext
         case "workspace_previous": return .workspacePrevious
         case "workspace_close": return .workspaceClose
+        case "workspace_move_next": return .workspaceMoveNext
+        case "workspace_move_previous": return .workspaceMovePrevious
+        case "workspace_break_pane": return .workspaceBreakPane
         case "workspace_rename": return .workspaceRename
         case "notifications_toggle": return .notificationsToggle
         case "notifications_jump_unread": return .notificationsJumpUnread
@@ -163,6 +169,9 @@ enum IDEKeybindConfig {
         b.append(bind(.command, "o", .workspaceNext))
         b.append(bind(.command, "i", .workspacePrevious))
         b.append(bind([.command, .shift], "w", .workspaceClose))
+        b.append(bind([.command, .shift], "o", .workspaceMoveNext))
+        b.append(bind([.command, .shift], "i", .workspaceMovePrevious))
+        b.append(bind([.command, .shift], "n", .workspaceBreakPane))
         b.append(bind([.command, .shift], "r", .workspaceRename))
 
         // Workspace goto 1-9

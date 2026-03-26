@@ -156,6 +156,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         // If our surface tree is now nil then we close our window.
         if to.isEmpty {
+            #if GHOSTTY_IDE
+            if !WorkspaceController.shared.workspaces.isEmpty { return }
+            #endif
             self.window?.close()
         }
     }
@@ -169,6 +172,11 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // We have a special case if our tree is empty to close our tab immediately.
         // This makes it so that undo is handled properly.
         if newTree.isEmpty {
+            #if GHOSTTY_IDE
+            if WorkspaceController.shared.closeActiveWorkspaceOrFallback() {
+                return
+            }
+            #endif
             closeTabImmediately()
             return
         }
@@ -631,6 +639,10 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             super.closeSurface(node, withConfirmation: withConfirmation)
             return
         }
+
+        #if GHOSTTY_IDE
+        if WorkspaceController.shared.closeActiveWorkspaceOrFallback() { return }
+        #endif
 
         // More than 1 window means we have tabs and we're closing a tab
         if window?.tabGroup?.windows.count ?? 0 > 1 {

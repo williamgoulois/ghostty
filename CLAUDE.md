@@ -22,12 +22,19 @@ DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer zig build -Demit-x
 # 2. Build macOS app (release — optimized, for daily use)
 cd macos && xcodebuild -scheme GhosttyIDE -configuration Release build
 
-# 3. Build CLI
+# 3. Codesign (required — Sparkle.framework needs matching signature)
+codesign --force --deep --sign - /Users/William.Goulois/Library/Developer/Xcode/DerivedData/Ghostty-dpyhwfejdrctbtgasmyyxdbeuxjc/Build/Products/Release/GhosttyIDE.app
+
+# 4. Build CLI
 cd ide/CLI && swift build
 
-# 4. Lint Swift code (must pass with 0 violations)
+# 5. Lint Swift code (must pass with 0 violations)
 swiftlint lint
 ```
+
+### Build Verification Marker
+
+During development, a small build marker (e.g. `b1`, `b2`) is shown in the bottom-right corner of the bottom bar (`ide/Sources/UI/IDEBottomBarView.swift`). **Bump the marker** each rebuild so you can confirm the running app matches the latest build. Remove the marker once features are confirmed working.
 
 Note: The "debug build" warning banner is driven by the **Zig** build mode (`ghostty_info.mode`), not Xcode's configuration. The `ReleaseFast` flag above already handles it. Use `-configuration Debug` only when you need Swift debug symbols.
 
