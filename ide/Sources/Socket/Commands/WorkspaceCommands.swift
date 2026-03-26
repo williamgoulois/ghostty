@@ -85,7 +85,7 @@ extension IDECommandRouter {
             let colorHex = command.args?["color"]?.value as? String
             let emoji = command.args?["emoji"]?.value as? String
 
-            var color: NSColor? = nil
+            var color: NSColor?
             if let hex = colorHex {
                 color = NSColor(hex: hex)
             }

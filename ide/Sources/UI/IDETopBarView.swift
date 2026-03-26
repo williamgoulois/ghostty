@@ -103,7 +103,7 @@ struct IDETopBarView: View {
 
             // Notification bell — global count across ALL projects/workspaces/panes
             let totalUnread = notificationManager.unreadPaneIds.count
-            Button(action: { showNotificationPanel.toggle() }) {
+            Button(action: { showNotificationPanel.toggle() }, label: {
                 HStack(spacing: 3) {
                     Image(systemName: totalUnread > 0 ? "bell.fill" : "bell")
                         .font(.system(size: 10))
@@ -118,7 +118,7 @@ struct IDETopBarView: View {
                 .background(
                     Capsule().fill(totalUnread > 0 ? Color.red : Color.clear)
                 )
-            }
+            })
             .buttonStyle(.plain)
             .popover(isPresented: $showNotificationPanel, arrowEdge: .bottom) {
                 NotificationPanelView(
@@ -166,7 +166,7 @@ struct IDEMetadataChip: View {
     let icon: String
     let text: String
     var color: Color = .secondary
-    var url: String? = nil
+    var url: String?
 
     var body: some View {
         HStack(spacing: 3) {

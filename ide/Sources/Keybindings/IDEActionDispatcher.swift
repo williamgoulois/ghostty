@@ -173,7 +173,7 @@ final class IDEActionDispatcher {
         let name = input.stringValue.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
 
-        let _ = controller.renameProject(from: current, to: name)
+        _ = controller.renameProject(from: current, to: name)
     }
 
     /// Show a dialog to rename the current workspace.

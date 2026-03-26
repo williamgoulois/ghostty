@@ -23,11 +23,11 @@ struct NotificationPanelView: View {
                     .buttonStyle(.plain)
                     .foregroundColor(.accentColor)
                 }
-                Button(action: { isPresented = false }) {
+                Button(action: { isPresented = false }, label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                         .font(.system(size: 14))
-                }
+                })
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 12)

@@ -108,7 +108,7 @@ final class WorkspaceStatusBridge {
         let allStatuses = StatusStore.shared.list()
 
         // Find the most relevant agent state from panes in this workspace
-        var highestPriority: AgentState? = nil
+        var highestPriority: AgentState?
 
         for status in allStatuses {
             guard let key = status["key"] as? String, key == "agent" else { continue }

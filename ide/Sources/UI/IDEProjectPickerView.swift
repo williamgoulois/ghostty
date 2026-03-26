@@ -52,7 +52,7 @@ enum IDEProjectPickerOptions {
                     subtitle: "\(p.windowCount) windows, \(p.paneCount) panes",
                     leadingIcon: "arrow.uturn.backward"
                 ) {
-                    let _ = try? WorkspaceManager.shared.restore(name: p.name)
+                    _ = try? WorkspaceManager.shared.restore(name: p.name)
                 })
             }
         }

@@ -24,6 +24,9 @@ cd macos && xcodebuild -scheme GhosttyIDE -configuration Release build
 
 # 3. Build CLI
 cd ide/CLI && swift build
+
+# 4. Lint Swift code (must pass with 0 violations)
+swiftlint lint
 ```
 
 Note: The "debug build" warning banner is driven by the **Zig** build mode (`ghostty_info.mode`), not Xcode's configuration. The `ReleaseFast` flag above already handles it. Use `-configuration Debug` only when you need Swift debug symbols.

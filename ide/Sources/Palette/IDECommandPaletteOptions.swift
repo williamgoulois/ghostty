@@ -1,19 +1,22 @@
 import SwiftUI
 
+/// Closure callbacks for IDE palette actions.
+struct IDEPaletteActions {
+    let saveProject: () -> Void
+    let restoreProject: (String) -> Void
+    let deleteProject: (String) -> Void
+    let newWorkspace: () -> Void
+    let renameWorkspace: () -> Void
+    let renameProject: () -> Void
+    let newProject: () -> Void
+}
+
 /// Builds CommandOption entries for IDE-specific commands in the command palette.
 struct IDECommandPaletteOptions {
 
     /// All IDE command options for the palette.
     /// Workspaces and projects are loaded dynamically each time the palette opens.
-    static func options(
-        onSaveProject: @escaping () -> Void,
-        onRestoreProject: @escaping (String) -> Void,
-        onDeleteProject: @escaping (String) -> Void,
-        onNewWorkspace: @escaping () -> Void,
-        onRenameWorkspace: @escaping () -> Void,
-        onRenameProject: @escaping () -> Void,
-        onNewProject: @escaping () -> Void
-    ) -> [CommandOption] {
+    static func options(actions: IDEPaletteActions) -> [CommandOption] {
         var opts: [CommandOption] = []
 
         // --- Workspace commands ---
@@ -22,7 +25,7 @@ struct IDECommandPaletteOptions {
             title: "Workspace: New",
             description: "Create a new workspace in the current project",
             leadingIcon: "plus.rectangle",
-            action: onNewWorkspace
+            action: actions.newWorkspace
         ))
 
         let controller = WorkspaceController.shared
@@ -64,7 +67,7 @@ struct IDECommandPaletteOptions {
             title: "Workspace: Rename",
             description: "Rename the active workspace",
             leadingIcon: "pencil",
-            action: onRenameWorkspace
+            action: actions.renameWorkspace
         ))
 
         // --- Project switching ---
@@ -73,14 +76,14 @@ struct IDECommandPaletteOptions {
             title: "Project: New",
             description: "Create a new project with a 'main' workspace",
             leadingIcon: "plus.rectangle.on.folder",
-            action: onNewProject
+            action: actions.newProject
         ))
 
         opts.append(CommandOption(
             title: "Project: Rename",
             description: "Rename the active project across all its workspaces",
             leadingIcon: "pencil",
-            action: onRenameProject
+            action: actions.renameProject
         ))
 
         let allProjects = controller.projects
@@ -101,7 +104,7 @@ struct IDECommandPaletteOptions {
             title: "Project: Save Current",
             description: "Save all windows as a named project",
             leadingIcon: "square.and.arrow.down",
-            action: onSaveProject
+            action: actions.saveProject
         ))
 
         if let projects = try? WorkspaceStore.shared.list() {
@@ -110,7 +113,7 @@ struct IDECommandPaletteOptions {
                     title: "Project: Restore — \(p.name)",
                     subtitle: "\(p.windowCount) windows, \(p.paneCount) panes",
                     leadingIcon: "arrow.uturn.backward",
-                    action: { onRestoreProject(p.name) }
+                    action: { actions.restoreProject(p.name) }
                 ))
             }
             for p in projects {
@@ -118,7 +121,7 @@ struct IDECommandPaletteOptions {
                     title: "Project: Delete — \(p.name)",
                     description: "Permanently remove this saved project",
                     leadingIcon: "trash",
-                    action: { onDeleteProject(p.name) }
+                    action: { actions.deleteProject(p.name) }
                 ))
             }
         }
@@ -127,7 +130,7 @@ struct IDECommandPaletteOptions {
             title: "Project: Close All Windows",
             description: "Close every terminal window",
             leadingIcon: "xmark.rectangle",
-            action: { let _ = WorkspaceManager.shared.closeAll() }
+            action: { _ = WorkspaceManager.shared.closeAll() }
         ))
 
         // --- Notification commands ---

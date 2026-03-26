@@ -102,15 +102,15 @@ struct TerminalCommandPaletteView: View {
         // so that "Foo:" sorts before "Foo Bar:". Use sortKey as a tie-breaker
         // for stable ordering when titles are equal.
         #if GHOSTTY_IDE
-        let ideOpts = IDECommandPaletteOptions.options(
-            onSaveProject: { self.handleProjectSave() },
-            onRestoreProject: { name in let _ = try? WorkspaceManager.shared.restore(name: name) },
-            onDeleteProject: { name in let _ = try? WorkspaceStore.shared.delete(name: name) },
-            onNewWorkspace: { self.handleWorkspaceNew() },
-            onRenameWorkspace: { self.handleWorkspaceRename() },
-            onRenameProject: { self.handleProjectRename() },
-            onNewProject: { self.handleProjectNew() }
-        )
+        let ideOpts = IDECommandPaletteOptions.options(actions: IDEPaletteActions(
+            saveProject: { self.handleProjectSave() },
+            restoreProject: { name in _ = try? WorkspaceManager.shared.restore(name: name) },
+            deleteProject: { name in _ = try? WorkspaceStore.shared.delete(name: name) },
+            newWorkspace: { self.handleWorkspaceNew() },
+            renameWorkspace: { self.handleWorkspaceRename() },
+            renameProject: { self.handleProjectRename() },
+            newProject: { self.handleProjectNew() }
+        ))
         #else
         let ideOpts: [CommandOption] = []
         #endif
@@ -203,7 +203,7 @@ struct TerminalCommandPaletteView: View {
         if alert.runModal() == .alertFirstButtonReturn {
             let name = input.stringValue.trimmingCharacters(in: .whitespaces)
             if !name.isEmpty {
-                let _ = try? WorkspaceManager.shared.save(name: name)
+                _ = try? WorkspaceManager.shared.save(name: name)
             }
         }
     }
@@ -265,7 +265,7 @@ struct TerminalCommandPaletteView: View {
         if alert.runModal() == .alertFirstButtonReturn {
             let name = input.stringValue.trimmingCharacters(in: .whitespaces)
             if !name.isEmpty {
-                let _ = controller.renameProject(from: current, to: name)
+                _ = controller.renameProject(from: current, to: name)
             }
         }
     }

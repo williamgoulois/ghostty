@@ -341,8 +341,8 @@ final class WorkspaceController: ObservableObject {
             }
 
             // Encode split tree if workspace has been visited
-            var surfaceTreeCodable: AnyCodable? = nil
-            var focusedId: String? = nil
+            var surfaceTreeCodable: AnyCodable?
+            var focusedId: String?
             if let tree = ws.splitTree {
                 if let data = try? JSONEncoder().encode(tree),
                    let codable = try? JSONDecoder().decode(AnyCodable.self, from: data) {
@@ -378,7 +378,7 @@ final class WorkspaceController: ObservableObject {
     /// (deferred until terminalController is wired via `activateRestoredSession()`).
     func restoreSessionMetadata(_ session: IDESessionFile) {
         for wsData in session.workspaces {
-            var color: NSColor? = nil
+            var color: NSColor?
             if let hex = wsData.colorHex {
                 color = NSColor(hex: hex)
             }

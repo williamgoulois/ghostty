@@ -61,7 +61,7 @@ struct CommandPaletteView: View {
     @Binding var isPresented: Bool
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     var placeholder: String = "Execute a command…"
-    var preselectIndex: UInt? = nil
+    var preselectIndex: UInt?
     var options: [CommandOption]
     @State private var query = ""
     @State private var selectedIndex: UInt?

@@ -32,10 +32,8 @@ final class IDEKeybindRegistry {
         lock.lock()
         defer { lock.unlock() }
 
-        for binding in bindings {
-            if binding.matches(event) {
-                return binding.action
-            }
+        for binding in bindings where binding.matches(event) {
+            return binding.action
         }
         return nil
     }

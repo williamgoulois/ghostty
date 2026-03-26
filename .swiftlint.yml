@@ -1,2 +1,7 @@
-included: macos
+# Lint both upstream Ghostty code and IDE additions with the same rules.
+included:
+  - macos
+  - ide
+excluded:
+  - ide/CLI/.build
 child_config: macos/.swiftlint.yml

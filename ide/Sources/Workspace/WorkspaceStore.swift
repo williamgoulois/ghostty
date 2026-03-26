@@ -28,6 +28,7 @@ enum WorkspaceStoreError: LocalizedError {
 final class WorkspaceStore {
     static let shared = WorkspaceStore()
 
+    // swiftlint:disable:next force_try
     private let namePattern = try! NSRegularExpression(pattern: "^[a-zA-Z0-9._-]+$")
 
     private var baseDir: URL {
