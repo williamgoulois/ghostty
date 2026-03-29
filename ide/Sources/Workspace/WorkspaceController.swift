@@ -408,6 +408,30 @@ final class WorkspaceController: ObservableObject {
         return Self.countMatching(root, in: unreadPaneIds)
     }
 
+    /// Enumerate all live surfaces across all workspaces.
+    /// Returns tuples of (surface, workspace) for each visited workspace's surfaces.
+    func allSurfaces() -> [(surface: Ghostty.SurfaceView, workspace: IDEWorkspace)] {
+        var result: [(Ghostty.SurfaceView, IDEWorkspace)] = []
+        for ws in workspaces {
+            guard let root = liveRoot(for: ws) else { continue }
+            for surface in root.leaves() {
+                result.append((surface, ws))
+            }
+        }
+        return result
+    }
+
+    /// Find a surface by UUID across all workspaces (active + inactive).
+    func findSurface(id targetID: UUID) -> (surface: Ghostty.SurfaceView, workspace: IDEWorkspace)? {
+        for ws in workspaces {
+            guard let root = liveRoot(for: ws) else { continue }
+            for surface in root.leaves() where surface.id == targetID {
+                return (surface, ws)
+            }
+        }
+        return nil
+    }
+
     /// For the active workspace, use the live controller tree (the saved splitTree
     /// may be stale since SplitTree is a value type). For inactive workspaces, use
     /// the snapshot saved on last switch-away.

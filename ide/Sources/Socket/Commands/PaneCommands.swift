@@ -3,21 +3,38 @@ import GhosttyKit
 
 extension IDECommandRouter {
     func registerPaneCommands() {
-        register("pane.list") { _ in
+        register("pane.list") { command in
+            let filterProject = command.args?["project"]?.value as? String
+            let filterWorkspace = command.args?["workspace"]?.value as? String
+
             var panes: [[String: Any]] = []
-            for window in NSApp.windows {
-                guard let controller = window.windowController as? BaseTerminalController else {
-                    continue
+            let activeWsId = WorkspaceController.shared.activeWorkspace?.id
+
+            for (surface, ws) in WorkspaceController.shared.allSurfaces() {
+                if let fp = filterProject, ws.project != fp { continue }
+                if let fw = filterWorkspace, ws.name != fw { continue }
+                // Foreground process detection
+                var processName: String = ""
+                if let surfacePtr = surface.surface {
+                    let pid = ghostty_surface_foreground_pid(surfacePtr)
+                    if pid > 0 {
+                        processName = IDEProcessInfo.processName(for: pid_t(pid)) ?? ""
+                    }
                 }
-                for surface in controller.surfaceTree {
-                    panes.append([
-                        "id": surface.id.uuidString,
-                        "title": surface.title,
-                        "pwd": surface.pwd ?? "",
-                        "window_id": window.windowNumber,
-                        "focused": surface.focused,
-                    ])
-                }
+
+                // Only the active workspace's surfaces are in the window
+                let isFocused = ws.id == activeWsId && surface.focused
+
+                panes.append([
+                    "id": surface.id.uuidString,
+                    "title": surface.title,
+                    "pwd": surface.pwd ?? "",
+                    "window_id": surface.window?.windowNumber ?? 0,
+                    "focused": isFocused,
+                    "foreground_process": processName,
+                    "workspace": ws.name,
+                    "project": ws.project,
+                ])
             }
             return .success(["panes": panes])
         }
@@ -109,6 +126,52 @@ extension IDECommandRouter {
                 }
             }
             return .failure("Pane not found: \(idStr)")
+        }
+
+        register("pane.send-text") { command in
+            guard let idStr = command.args?["id"]?.value as? String,
+                  let targetID = UUID(uuidString: idStr) else {
+                return .failure("Missing or invalid 'id' argument")
+            }
+
+            guard let text = command.args?["text"]?.value as? String, !text.isEmpty else {
+                return .failure("Missing or empty 'text' argument")
+            }
+
+            let shouldFocus = (command.args?["focus"]?.value as? String) == "true"
+                || (command.args?["focus"]?.value as? Bool) == true
+
+            guard let (surface, ws) = WorkspaceController.shared.findSurface(id: targetID) else {
+                return .failure("Pane not found: \(idStr)")
+            }
+
+            guard let surfaceModel = surface.surfaceModel else {
+                return .failure("Surface model not available for pane: \(idStr)")
+            }
+
+            // If target is in a different workspace, switch to it first
+            if ws.id != WorkspaceController.shared.activeWorkspace?.id {
+                WorkspaceController.shared.switchTo(workspace: ws)
+            }
+
+            // Handler runs on main thread (DispatchQueue.main.sync in SocketServer),
+            // but sendText is @MainActor so we need to tell the compiler.
+            MainActor.assumeIsolated {
+                surfaceModel.sendText(text)
+            }
+
+            if shouldFocus {
+                if let window = surface.window {
+                    window.makeKeyAndOrderFront(nil)
+                    window.makeFirstResponder(surface)
+                }
+            }
+
+            return .success([
+                "id": idStr,
+                "text_length": text.count,
+                "focused": shouldFocus,
+            ])
         }
     }
 }

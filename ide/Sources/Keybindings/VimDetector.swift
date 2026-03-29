@@ -32,18 +32,10 @@ final class VimDetector {
         guard pid > 0 else { return false }
 
         // Get the process base name
-        guard let name = processName(pid_t(pid)) else { return false }
+        guard let name = IDEProcessInfo.processName(for: pid_t(pid)) else { return false }
 
         let range = NSRange(name.startIndex..., in: name)
         return vimPattern.firstMatch(in: name, range: range) != nil
     }
 
-    /// Get the base name of a process executable via proc_name().
-    private func processName(_ pid: pid_t) -> String? {
-        // proc_name is a lightweight kernel call (no process spawn)
-        var name = [CChar](repeating: 0, count: 256)
-        let len = proc_name(pid, &name, UInt32(name.count))
-        guard len > 0 else { return nil }
-        return String(cString: name)
-    }
 }
