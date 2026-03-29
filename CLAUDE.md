@@ -64,7 +64,7 @@ Zig 0.15.2's linker cannot parse macOS 26 SDK `.tbd` files because Apple dropped
 - `ide/Sources/Socket/SocketServer.swift` — POSIX Unix socket listener on `/tmp/ghosttyide.sock`
 - `ide/Sources/Socket/CommandRouter.swift` — JSON command dispatch
 - `ide/Sources/Socket/CommandProtocol.swift` — Command/response types with AnyCodable
-- `ide/Sources/Socket/Commands/PaneCommands.swift` — pane.list, pane.split, pane.focus, pane.focus-direction, pane.close
+- `ide/Sources/Socket/Commands/PaneCommands.swift` — pane.list, pane.split, pane.focus, pane.focus-direction, pane.close, pane.send-text
 - `ide/Sources/Socket/Commands/AppCommands.swift` — app.version, app.pid, app.quit, help
 - `ide/Sources/Socket/Commands/WorkspaceCommands.swift` — project + workspace socket commands
 - `ide/Sources/Socket/Commands/NotifyCommands.swift` — notify.send, notify.list, notify.clear, notify.status
@@ -80,6 +80,7 @@ Zig 0.15.2's linker cannot parse macOS 26 SDK `.tbd` files because Apple dropped
 - `ide/Sources/Workspace/IDESessionStore.swift` — Session data model + disk I/O
 - `ide/Sources/Notifications/NotificationManager.swift` — macOS notification center bridge + dock badge
 - `ide/Sources/Notifications/StatusStore.swift` — In-memory per-pane key-value status
+- `ide/Sources/Utilities/ProcessInfo.swift` — Shared process name lookup via `proc_name()`
 - `ide/Sources/Keybindings/VimDetector.swift` — Detect vim/neovim via foreground PID
 - `ide/Sources/Keybindings/IDEKeybindConfig.swift` — Parse `~/.config/ghosttyide/config`
 - `ide/Sources/Keybindings/IDEKeybindRegistry.swift` — Match NSEvent to IDEAction
@@ -115,8 +116,9 @@ Zig 0.15.2's linker cannot parse macOS 26 SDK `.tbd` files because Apple dropped
 
 ```bash
 # Run from ide/CLI directory, or use the built binary at ide/CLI/.build/debug/ide
-swift run ide pane list
+swift run ide pane list [--project <name>] [--workspace <name>]
 swift run ide pane focus-direction left
+swift run ide pane send-text <id> "text" [--focus]
 swift run ide app version --json
 swift run ide project save|restore|list|delete|close-all|rename
 swift run ide workspace new|switch|next|previous|list|rename|meta|project-switch
@@ -166,8 +168,8 @@ ide/Tests/.venv/bin/pytest -k "workflow"
 # Stop on first failure
 ide/Tests/.venv/bin/pytest -x
 
-# 151 tests across 9 modules:
-# test_protocol.py (6), test_panes.py (24), test_projects.py (17),
+# 170 tests across 9 modules:
+# test_protocol.py (6), test_panes.py (38), test_projects.py (17),
 # test_workspaces.py (29), test_notifications.py (9), test_status.py (8),
-# test_session.py (4), test_cli.py (49), test_workflows.py (5)
+# test_session.py (4), test_cli.py (54), test_workflows.py (5)
 ```

@@ -128,3 +128,167 @@ class TestPaneFocusDirection:
     def test_focus_direction_missing(self, send):
         resp = send({"command": "pane.focus-direction"})
         assert not resp["ok"]
+
+
+class TestPaneListEnhanced:
+    """Tests for pane.list enhanced fields (foreground_process, workspace, project)."""
+
+    def test_list_has_foreground_process(self, send):
+        """pane.list should include foreground_process field."""
+        resp = send({"command": "pane.list"})
+        assert resp["ok"]
+        panes = resp["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        pane = panes[0]
+        assert "foreground_process" in pane, "Missing 'foreground_process' field"
+        assert isinstance(pane["foreground_process"], str)
+
+    def test_list_has_workspace_and_project(self, send):
+        """pane.list should include workspace and project fields."""
+        resp = send({"command": "pane.list"})
+        assert resp["ok"]
+        panes = resp["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        pane = panes[0]
+        assert "workspace" in pane, "Missing 'workspace' field"
+        assert "project" in pane, "Missing 'project' field"
+
+    def test_foreground_process_nonempty(self, send):
+        """At least one pane should have a non-empty foreground_process (shell)."""
+        resp = send({"command": "pane.list"})
+        assert resp["ok"]
+        panes = resp["data"]["panes"]
+        has_process = any(p.get("foreground_process", "") for p in panes)
+        assert has_process, "Expected at least one pane with a foreground process"
+
+
+class TestPaneListFilter:
+    """Tests for pane.list with --project and --workspace filter args."""
+
+    def test_filter_by_project(self, send):
+        """Filtering by project should return only panes in that project."""
+        resp = send({"command": "pane.list"})
+        assert resp["ok"]
+        panes = resp["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        project = panes[0]["project"]
+        filtered = send({"command": "pane.list", "args": {"project": project}})
+        assert filtered["ok"]
+        for p in filtered["data"]["panes"]:
+            assert p["project"] == project
+
+    def test_filter_by_workspace(self, send):
+        """Filtering by workspace should return only panes in that workspace."""
+        resp = send({"command": "pane.list"})
+        assert resp["ok"]
+        panes = resp["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        workspace = panes[0]["workspace"]
+        filtered = send({"command": "pane.list", "args": {"workspace": workspace}})
+        assert filtered["ok"]
+        for p in filtered["data"]["panes"]:
+            assert p["workspace"] == workspace
+
+    def test_filter_nonexistent_project(self, send):
+        """Filtering by a project that doesn't exist should return empty list."""
+        resp = send({"command": "pane.list", "args": {"project": "nonexistent_project_xyz"}})
+        assert resp["ok"]
+        assert resp["data"]["panes"] == []
+
+    def test_filter_combined(self, send):
+        """Filtering by both project and workspace should intersect."""
+        resp = send({"command": "pane.list"})
+        assert resp["ok"]
+        panes = resp["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        pane = panes[0]
+        filtered = send({
+            "command": "pane.list",
+            "args": {"project": pane["project"], "workspace": pane["workspace"]},
+        })
+        assert filtered["ok"]
+        for p in filtered["data"]["panes"]:
+            assert p["project"] == pane["project"]
+            assert p["workspace"] == pane["workspace"]
+
+
+class TestPaneSendText:
+    """Tests for pane.send-text command."""
+
+    def test_send_text(self, send):
+        """Send text to an existing pane."""
+        panes = send({"command": "pane.list"})["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        target = panes[0]
+        resp = send({
+            "command": "pane.send-text",
+            "args": {"id": target["id"], "text": "# test\n"},
+        })
+        assert resp["ok"]
+        assert resp["data"]["text_length"] == 7
+        assert resp["data"]["id"] == target["id"]
+
+    def test_send_text_with_focus(self, send):
+        """Send text with focus flag."""
+        panes = send({"command": "pane.list"})["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        target = panes[0]
+        resp = send({
+            "command": "pane.send-text",
+            "args": {"id": target["id"], "text": "# test\n", "focus": "true"},
+        })
+        assert resp["ok"]
+        assert resp["data"]["focused"] is True
+
+    def test_send_text_missing_id(self, send):
+        """Missing id should fail."""
+        resp = send({
+            "command": "pane.send-text",
+            "args": {"text": "hello"},
+        })
+        assert not resp["ok"]
+
+    def test_send_text_missing_text(self, send):
+        """Missing text should fail."""
+        panes = send({"command": "pane.list"})["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        resp = send({
+            "command": "pane.send-text",
+            "args": {"id": panes[0]["id"]},
+        })
+        assert not resp["ok"]
+
+    def test_send_text_invalid_id(self, send):
+        """Invalid UUID should fail."""
+        resp = send({
+            "command": "pane.send-text",
+            "args": {"id": "not-a-uuid", "text": "hello"},
+        })
+        assert not resp["ok"]
+
+    def test_send_text_nonexistent_pane(self, send):
+        """Non-existent pane UUID should fail."""
+        resp = send({
+            "command": "pane.send-text",
+            "args": {"id": "00000000-0000-0000-0000-000000000000", "text": "hello"},
+        })
+        assert not resp["ok"]
+
+    def test_send_text_empty_text(self, send):
+        """Empty text should fail."""
+        panes = send({"command": "pane.list"})["data"]["panes"]
+        if not panes:
+            pytest.skip("No panes available")
+        resp = send({
+            "command": "pane.send-text",
+            "args": {"id": panes[0]["id"], "text": ""},
+        })
+        assert not resp["ok"]

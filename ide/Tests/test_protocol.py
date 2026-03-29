@@ -8,7 +8,7 @@ def test_help(send):
     assert resp["ok"]
     commands = resp["data"]["commands"]
     for cmd in ["help", "app.version", "app.pid", "pane.list", "pane.split",
-                "pane.focus", "pane.focus-direction", "pane.close",
+                "pane.focus", "pane.focus-direction", "pane.close", "pane.send-text",
                 "project.save", "project.restore", "project.list", "project.delete",
                 "project.close-all", "project.switch", "project.rename",
                 "workspace.new", "workspace.switch", "workspace.next",

@@ -124,6 +124,60 @@ def test_cli_pane_focus_direction_missing(cli):
     assert r.returncode != 0
 
 
+def test_cli_pane_send_text(cli):
+    r = cli("pane", "list", "--json")
+    data = json.loads(r.stdout)
+    panes = data["data"]["panes"]
+    if not panes:
+        pytest.skip("No panes available")
+    r2 = cli("pane", "send-text", panes[0]["id"], "# cli-test\n", "--json")
+    assert r2.returncode == 0
+    resp = json.loads(r2.stdout)
+    assert resp["ok"]
+    assert resp["data"]["text_length"] == 11
+
+
+def test_cli_pane_send_text_focus(cli):
+    r = cli("pane", "list", "--json")
+    data = json.loads(r.stdout)
+    panes = data["data"]["panes"]
+    if not panes:
+        pytest.skip("No panes available")
+    r2 = cli("pane", "send-text", panes[0]["id"], "# test\n", "--focus", "--json")
+    assert r2.returncode == 0
+    resp = json.loads(r2.stdout)
+    assert resp["ok"]
+    assert resp["data"]["focused"] is True
+
+
+def test_cli_pane_send_text_bad_id(cli):
+    r = cli("pane", "send-text", "00000000-0000-0000-0000-000000000000", "hello", "--json")
+    assert r.returncode != 0
+
+
+def test_cli_pane_list_filter_project(cli):
+    r = cli("pane", "list", "--project", "nonexistent_xyz", "--json")
+    assert r.returncode == 0
+    data = json.loads(r.stdout)
+    assert data["ok"]
+    assert data["data"]["panes"] == []
+
+
+def test_cli_pane_list_filter_workspace(cli):
+    r = cli("pane", "list", "--json")
+    data = json.loads(r.stdout)
+    panes = data["data"]["panes"]
+    if not panes:
+        pytest.skip("No panes available")
+    ws = panes[0]["workspace"]
+    r2 = cli("pane", "list", "--workspace", ws, "--json")
+    assert r2.returncode == 0
+    filtered = json.loads(r2.stdout)
+    assert filtered["ok"]
+    for p in filtered["data"]["panes"]:
+        assert p["workspace"] == ws
+
+
 # --- Project commands ---
 
 

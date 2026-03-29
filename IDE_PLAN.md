@@ -260,86 +260,24 @@ Testing:
 
 ---
 
-## Phase 16: Neovim → Agent File Sending
+## Phase 16: Neovim → Agent File Sending ✅
 
-**Goal:** Send files/selections from Neovim to Claude Code or OpenCode sessions running in GhosttyIDE panes. Port the cmux `mux-send.lua` pattern to GhosttyIDE's socket protocol.
-
-**How cmux does it (reference: `~/cmux` + `~/.config/nvim/lua/config/mux-send.lua`):**
-1. Discovery: `cmux list-panes` + `cmux list-pane-surfaces` to find other terminal panes
-2. Delivery: `cmux set-buffer --name nvim-send -- <text>` + `cmux paste-buffer --name nvim-send --surface <ref>` (handles multi-line reliably)
-3. Format: files sent as `@relative/path` (agents interpret `@` as file reference)
-4. Focus: `cmux focus-pane` after send so user can review before submitting
-
-**GhosttyIDE approach:** Simpler — no buffer indirection needed. Use `ghostty_surface_text()` C API to inject text directly into a target surface via a new socket command.
-
-### New socket commands
-
-**`pane.send-text`** — inject text into a pane's terminal input:
-```json
-{"command": "pane.send-text", "args": {"id": "<surface-uuid>", "text": "@src/main.swift\n@src/app.swift"}}
-```
-Implementation: look up surface by UUID, call `ghostty_surface_text(surface, text, len)`.
-
-**`pane.list` enhancement** — add `foreground_process` field to detect agent sessions:
-```json
-{"panes": [
-  {"id": "...", "title": "claude", "pwd": "/project", "foreground_process": "claude", "focused": false},
-  {"id": "...", "title": "zsh", "pwd": "/project", "foreground_process": "nvim", "focused": true}
-]}
-```
-Uses existing `ghostty_surface_foreground_pid()` + `proc_name()` to get the process name. Enables Neovim to auto-filter for agent panes (claude, opencode).
-
-### New CLI commands
-
-```bash
-ide pane send-text <id> "text to send"       # inject text into a pane
-ide pane send-text <id> --file <path>         # read file, send as @relative/path
-ide pane list --json                          # already exists, enhanced with foreground_process
-```
-
-### Neovim plugin
-
-Port `mux-send.lua` → `ide-send.lua` for GhosttyIDE. Detects `GHOSTTYIDE_SOCKET` env var, uses `ide` CLI.
-
-```
-ide/Resources/nvim/
-└── lua/
-    └── ghosttyide/
-        └── send.lua        # Neovim module: discover agent panes, send files/selections
-```
-
-**Keybindings (same as cmux mux-send):**
-| Binding | Function | Description |
-|---------|----------|-------------|
-| `<leader>af` | `send_file()` | Send current file as `@relative/path` |
-| `<leader>ab` | `send_buffers()` | Send all open buffers as `@path` lines |
-| `<leader>av` | `send_selection()` | Send visual selection text |
-| `<leader>as` | `select_target()` | Pick target pane (auto-filters for claude/opencode) |
-
-**Discovery flow:**
-1. `ide pane list --json` → parse JSON, filter by `foreground_process` ∈ {claude, opencode}
-2. If only one agent pane → auto-select as target
-3. If multiple → `vim.ui.select()` picker
-4. After send → `ide pane focus <id>` to switch to agent pane
-
-**Setup in user's nvim config:**
-```lua
--- ~/.config/nvim/lua/config/mux-send.lua (extend existing)
-if vim.env.GHOSTTYIDE_SOCKET then
-  require("ghosttyide.send").setup()
-elseif vim.env.CMUX_WORKSPACE_ID then
-  -- existing cmux setup
-end
-```
+**Goal:** Send files/selections from Neovim to Claude Code or OpenCode sessions running in GhosttyIDE panes.
 
 ### Tasks
 
-- [ ] Implement `pane.send-text` socket command (use `ghostty_surface_text()` C API)
-- [ ] Enhance `pane.list` to include `foreground_process` (via `ghostty_surface_foreground_pid()` + `proc_name()`)
-- [ ] Add `ide pane send-text` CLI command
-- [ ] Write `ide/Resources/nvim/lua/ghosttyide/send.lua` — Neovim plugin
-- [ ] Update `mux-send.lua` / nvim config to detect GhosttyIDE and use the plugin
-- [ ] Integration tests: pane.send-text, pane.list with foreground_process
+- [x] Implement `pane.send-text` socket command (use `ghostty_surface_text()` C API)
+- [x] Enhance `pane.list` to include `foreground_process`, `workspace`, `project`
+- [x] `pane.list` filters: optional `--project` and `--workspace` args
+- [x] `pane.list` + `pane.send-text` enumerate all workspaces (not just active)
+- [x] `pane.send-text` auto-switches workspace if target is in a different one
+- [x] Add `ide pane send-text` CLI command (with `--focus` flag)
+- [x] Write `~/.config/nvim/lua/config/ide-send.lua` — Neovim plugin (dotfiles)
+- [x] Neovim discovery: sorted by proximity (same workspace > same project > other)
+- [x] Update nvim `keymaps.lua` to detect GhosttyIDE and use ide-send
+- [x] Extract `IDEProcessInfo` shared utility (`sysctl KERN_PROCARGS2` for symlink-safe process names)
+- [x] `WorkspaceController.allSurfaces()` + `findSurface(id:)` — cross-workspace surface enumeration
+- [x] Integration tests: pane.send-text, pane.list enhanced fields, filter args, CLI coverage (170 tests total)
 
 ---
 
