@@ -2,6 +2,42 @@ import AppKit
 import GhosttyKit
 
 extension IDECommandRouter {
+
+    /// Find the currently focused surface, trying NSApp.keyWindow first,
+    /// then falling back to WorkspaceController's active workspace.
+    /// This ensures commands work even when GhosttyIDE isn't the frontmost app.
+    private static func focusedSurfaceView() -> (
+        surface: Ghostty.SurfaceView, ghostty: ghostty_surface_t
+    )? {
+        // Try key window first (works when app is focused)
+        if let keyWindow = NSApp.keyWindow,
+           let controller = keyWindow.windowController as? BaseTerminalController,
+           let surfaceView = controller.focusedSurface,
+           let surface = surfaceView.surface {
+            return (surfaceView, surface)
+        }
+
+        // Fall back to WorkspaceController (works without focus)
+        if let ws = WorkspaceController.shared.activeWorkspace,
+           let surfaceView = ws.focusedSurface,
+           let surface = surfaceView.surface {
+            // Ensure the window is brought forward
+            if let window = surfaceView.window {
+                window.makeKeyAndOrderFront(nil)
+            }
+            return (surfaceView, surface)
+        }
+
+        // Last resort: try the terminal controller directly
+        if let ctrl = WorkspaceController.shared.terminalController,
+           let surfaceView = ctrl.focusedSurface,
+           let surface = surfaceView.surface {
+            return (surfaceView, surface)
+        }
+
+        return nil
+    }
+
     func registerPaneCommands() {
         register("pane.list") { command in
             let filterProject = command.args?["project"]?.value as? String
@@ -50,14 +86,11 @@ extension IDECommandRouter {
             default: return .failure("Invalid direction: \(dirStr). Use: right, left, up, down")
             }
 
-            guard let keyWindow = NSApp.keyWindow,
-                  let controller = keyWindow.windowController as? BaseTerminalController,
-                  let focusedSurface = controller.focusedSurface,
-                  let surface = focusedSurface.surface else {
+            guard let focused = IDECommandRouter.focusedSurfaceView() else {
                 return .failure("No active terminal surface")
             }
 
-            ghostty_surface_split(surface, direction)
+            ghostty_surface_split(focused.ghostty, direction)
             return .success(["direction": dirStr])
         }
 
@@ -67,17 +100,20 @@ extension IDECommandRouter {
                 return .failure("Missing or invalid 'id' argument")
             }
 
-            for window in NSApp.windows {
-                guard let controller = window.windowController as? BaseTerminalController else {
-                    continue
-                }
-                for surface in controller.surfaceTree where surface.id == targetID {
-                    window.makeKeyAndOrderFront(nil)
-                    window.makeFirstResponder(surface)
-                    return .success(["id": idStr])
-                }
+            guard let (surface, ws) = WorkspaceController.shared.findSurface(id: targetID) else {
+                return .failure("Pane not found: \(idStr)")
             }
-            return .failure("Pane not found: \(idStr)")
+
+            // Switch workspace if needed
+            if ws.id != WorkspaceController.shared.activeWorkspace?.id {
+                WorkspaceController.shared.switchTo(workspace: ws)
+            }
+
+            if let window = surface.window {
+                window.makeKeyAndOrderFront(nil)
+                window.makeFirstResponder(surface)
+            }
+            return .success(["id": idStr])
         }
 
         register("pane.focus-direction") { command in
@@ -90,16 +126,13 @@ extension IDECommandRouter {
                 return .failure("Invalid direction: \(dirStr). Use: left, right, up, down")
             }
 
-            guard let keyWindow = NSApp.keyWindow,
-                  let controller = keyWindow.windowController as? BaseTerminalController,
-                  let focusedSurface = controller.focusedSurface,
-                  let surface = focusedSurface.surface else {
+            guard let focused = IDECommandRouter.focusedSurfaceView() else {
                 return .failure("No active terminal surface")
             }
 
             let action = "goto_split:\(dirStr)"
             let ok = ghostty_surface_binding_action(
-                surface,
+                focused.ghostty,
                 action,
                 UInt(action.lengthOfBytes(using: .utf8))
             )
@@ -116,16 +149,22 @@ extension IDECommandRouter {
                 return .failure("Missing or invalid 'id' argument")
             }
 
-            for window in NSApp.windows {
-                guard let controller = window.windowController as? BaseTerminalController else {
-                    continue
-                }
-                for surface in controller.surfaceTree where surface.id == targetID {
-                    controller.closeSurface(surface, withConfirmation: false)
-                    return .success(["id": idStr])
-                }
+            guard let (surface, ws) = WorkspaceController.shared.findSurface(id: targetID) else {
+                return .failure("Pane not found: \(idStr)")
             }
-            return .failure("Pane not found: \(idStr)")
+
+            // Switch workspace if needed so the surface is in the active tree
+            if ws.id != WorkspaceController.shared.activeWorkspace?.id {
+                WorkspaceController.shared.switchTo(workspace: ws)
+            }
+
+            guard let window = surface.window,
+                  let controller = window.windowController as? BaseTerminalController else {
+                return .failure("Surface not attached to a window: \(idStr)")
+            }
+
+            controller.closeSurface(surface, withConfirmation: false)
+            return .success(["id": idStr])
         }
 
         register("pane.send-text") { command in

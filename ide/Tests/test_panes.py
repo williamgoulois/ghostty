@@ -1,5 +1,7 @@
 """Pane command tests: list, split, focus, close."""
 
+import time
+
 import pytest
 
 
@@ -94,8 +96,14 @@ class TestPaneClose:
         split_resp = send({"command": "pane.split", "args": {"direction": "right"}})
         if not split_resp["ok"]:
             pytest.skip("No active terminal surface for split")
-        after = {p["id"] for p in send({"command": "pane.list"})["data"]["panes"]}
-        new_ids = after - before
+        # Wait for the split to complete — surface creation is async
+        new_ids = set()
+        for _ in range(10):
+            after = {p["id"] for p in send({"command": "pane.list"})["data"]["panes"]}
+            new_ids = after - before
+            if new_ids:
+                break
+            time.sleep(0.2)
         assert len(new_ids) >= 1, "Split should create a new pane"
         new_pane_id = new_ids.pop()
         resp = send({"command": "pane.close", "args": {"id": new_pane_id}})

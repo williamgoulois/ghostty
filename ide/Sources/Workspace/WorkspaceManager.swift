@@ -139,6 +139,49 @@ final class WorkspaceManager {
 
     /// Capture the state of all terminal windows.
     private func captureWindowStates() throws -> [ProjectWindowState] {
+        // Use WorkspaceController's terminal controller directly — this works
+        // regardless of whether the app is the frontmost application, unlike
+        // iterating NSApp.windows which requires key window status.
+        guard let controller = WorkspaceController.shared.terminalController else {
+            // Fall back to NSApp.windows for non-IDE builds
+            return try captureWindowStatesFromWindows()
+        }
+
+        // Encode the live SplitTree to JSON, then decode as AnyCodable
+        let treeData: Data
+        do {
+            treeData = try JSONEncoder().encode(controller.surfaceTree)
+        } catch {
+            throw WorkspaceManagerError.encodeFailed(error.localizedDescription)
+        }
+
+        let treeCodable: AnyCodable
+        do {
+            treeCodable = try JSONDecoder().decode(AnyCodable.self, from: treeData)
+        } catch {
+            throw WorkspaceManagerError.encodeFailed("AnyCodable roundtrip: \(error.localizedDescription)")
+        }
+
+        // Build pane summaries
+        var panes: [PaneSummary] = []
+        for surface in controller.surfaceTree {
+            panes.append(PaneSummary(
+                id: surface.id.uuidString,
+                pwd: surface.pwd,
+                title: surface.title
+            ))
+        }
+
+        return [ProjectWindowState(
+            name: nil,
+            surfaceTree: treeCodable,
+            focusedSurface: controller.focusedSurface?.id.uuidString,
+            panes: panes
+        )]
+    }
+
+    /// Legacy fallback: iterate NSApp.windows (requires key window status).
+    private func captureWindowStatesFromWindows() throws -> [ProjectWindowState] {
         var states: [ProjectWindowState] = []
 
         for window in NSApp.windows {
@@ -146,7 +189,6 @@ final class WorkspaceManager {
                 continue
             }
 
-            // Encode the live SplitTree to JSON, then decode as AnyCodable
             let treeData: Data
             do {
                 treeData = try JSONEncoder().encode(controller.surfaceTree)
@@ -161,7 +203,6 @@ final class WorkspaceManager {
                 throw WorkspaceManagerError.encodeFailed("AnyCodable roundtrip: \(error.localizedDescription)")
             }
 
-            // Build pane summaries
             var panes: [PaneSummary] = []
             for surface in controller.surfaceTree {
                 panes.append(PaneSummary(

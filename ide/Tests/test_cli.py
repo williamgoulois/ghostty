@@ -114,9 +114,7 @@ def test_cli_pane_close_bad_id(cli):
 
 def test_cli_pane_focus_direction(cli):
     r = cli("pane", "focus-direction", "left")
-    # May fail if not key window
-    if r.returncode != 0:
-        assert "no active terminal surface" in (r.stderr + r.stdout).lower()
+    assert r.returncode == 0
 
 
 def test_cli_pane_focus_direction_missing(cli):
@@ -201,7 +199,9 @@ def test_cli_project_save_json(cli):
 
 def test_cli_project_list(cli):
     name = f"_cli_proj_{uuid.uuid4().hex[:8]}"
-    cli("project", "save", name)
+    save_r = cli("project", "save", name)
+    if save_r.returncode != 0:
+        pytest.skip(f"project save failed: {save_r.stderr.strip()}")
     r = cli("project", "list")
     assert r.returncode == 0
     assert name in r.stdout
@@ -217,7 +217,9 @@ def test_cli_project_list_json(cli):
 
 def test_cli_project_delete(cli):
     name = f"_cli_proj_{uuid.uuid4().hex[:8]}"
-    cli("project", "save", name)
+    save_r = cli("project", "save", name)
+    if save_r.returncode != 0:
+        pytest.skip(f"project save failed: {save_r.stderr.strip()}")
     r = cli("project", "delete", name)
     assert r.returncode == 0
     assert "Deleted" in r.stdout

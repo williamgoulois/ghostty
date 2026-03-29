@@ -124,21 +124,42 @@ def preflight():
 
     assert os.path.exists(SOCKET_PATH), f"Socket not found at {SOCKET_PATH}"
 
+    # Activate GhosttyIDE so NSApp.keyWindow is set (commands like pane.split
+    # and pane.focus-direction need it when the app isn't frontmost)
+    subprocess.run(
+        ["osascript", "-e", 'tell application "GhosttyIDE" to activate'],
+        capture_output=True, timeout=5,
+    )
+    time.sleep(0.5)
+
     resp = _send_command({"command": "app.pid"})
     assert resp["ok"], f"app.pid failed: {resp}"
 
-    # Ensure at least one terminal window — wait for one to appear
-    # (the app creates a window on launch, just may not be ready yet)
+    # Ensure at least one terminal window with panes.
+    # The app may have workspaces from session restore but no surfaces yet
+    # (surfaces are lazily created on first visit). If no panes are found,
+    # switch to an existing workspace (triggers surface creation) or create one.
     for _ in range(10):
         resp = _send_command({"command": "pane.list"})
         if resp.get("data", {}).get("panes"):
             break
         time.sleep(0.5)
     else:
-        # No windows — ask the app to open a new one
-        app_path = _find_app_path()
-        if app_path:
-            subprocess.run(["open", app_path], capture_output=True)
+        # Try switching to an existing workspace to trigger surface creation
+        ws_resp = _send_command({"command": "workspace.list"})
+        activated = False
+        if ws_resp.get("ok"):
+            for ws in ws_resp["data"].get("workspaces", []):
+                _send_command({"command": "workspace.switch", "args": {"name": ws["name"]}})
+                time.sleep(1)
+                check = _send_command({"command": "pane.list"})
+                if check.get("data", {}).get("panes"):
+                    activated = True
+                    break
+        if not activated:
+            # No workspaces exist — create one (triggers lazy surface creation)
+            _send_command({"command": "workspace.new", "args": {"name": "main", "project": "default"}})
+            _send_command({"command": "workspace.switch", "args": {"name": "main"}})
             time.sleep(2)
         for _ in range(10):
             resp = _send_command({"command": "pane.list"})
@@ -161,22 +182,61 @@ def original_project():
 
 @pytest.fixture(scope="session", autouse=True)
 def session_cleanup(original_project):
-    """Close orphaned surfaces and restore project after all tests."""
+    """Restore project and clean test artifacts after all tests.
+    Note: we do NOT call project.close-all — that kills all terminal windows
+    and makes subsequent test runs fail (no panes). Individual test fixtures
+    (make_workspace, switch_project) handle their own cleanup."""
     yield
-    # Close all orphaned surfaces
+    # Remove any test workspaces that leaked (prefixed with _t_, _wf_, _cli_)
     try:
-        _send_command({"command": "project.close-all"})
+        resp = _send_command({"command": "workspace.list"})
+        if resp.get("ok"):
+            for ws in resp["data"].get("workspaces", []):
+                name = ws.get("name", "")
+                if any(name.startswith(p) for p in ["_t_", "_wf_", "_cli_"]):
+                    try:
+                        _send_command({"command": "workspace.remove", "args": {"name": name}})
+                    except Exception:
+                        pass
     except Exception:
         pass
-    # Restore project (skip test artifacts)
+    # Restore original project (skip test artifacts)
     restore = original_project
-    if not restore or any(x in restore for x in ["_test_", "_wf_", "_cli_"]):
+    if not restore or any(x in restore for x in ["_test_", "_wf_", "_cli_", "_t_"]):
         restore = "default"
     try:
         _send_command({"command": "project.switch", "args": {"name": restore}})
     except Exception:
         pass
-    # Save session so the on-disk state is clean (not polluted by test workspaces)
+    # Clean up any saved test projects on disk
+    try:
+        resp = _send_command({"command": "project.list"})
+        if resp.get("ok"):
+            for proj in resp["data"].get("projects", []):
+                name = proj.get("name", "")
+                if any(name.startswith(p) for p in ["_t_", "_wf_", "_cli_"]):
+                    try:
+                        _send_command({"command": "project.delete", "args": {"name": name}})
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    # Ensure at least one workspace exists (tests may have removed all of them)
+    try:
+        resp = _send_command({"command": "pane.list"})
+        if not resp.get("data", {}).get("panes"):
+            ws_resp = _send_command({"command": "workspace.list"})
+            has_workspace = ws_resp.get("ok") and ws_resp["data"].get("workspaces")
+            if not has_workspace:
+                _send_command({"command": "workspace.new", "args": {"name": "main", "project": "default"}})
+            # Switch to trigger surface creation
+            ws_resp = _send_command({"command": "workspace.list"})
+            if ws_resp.get("ok") and ws_resp["data"].get("workspaces"):
+                name = ws_resp["data"]["workspaces"][0]["name"]
+                _send_command({"command": "workspace.switch", "args": {"name": name}})
+    except Exception:
+        pass
+    # Save session so the on-disk state is clean
     try:
         _send_command({"command": "session.save"})
     except Exception:
