@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OSLog
 
 /// Direction for pane navigation.
 enum IDEDirection: String {
@@ -46,6 +47,7 @@ struct IDEKeybinding {
 
 /// Parses `~/.config/ghosttyide/config` into IDE keybindings.
 enum IDEKeybindConfig {
+    private static let logger = IDELogger.make(for: IDEKeybindConfig.self)
     static let configDir = "\(NSHomeDirectory())/.config/ghosttyide"
     static let configPath = "\(configDir)/config"
 
@@ -54,8 +56,14 @@ enum IDEKeybindConfig {
         if FileManager.default.fileExists(atPath: configPath),
            let contents = try? String(contentsOfFile: configPath, encoding: .utf8) {
             let parsed = parseLines(contents)
-            return parsed.isEmpty ? defaultBindings() : parsed
+            if parsed.isEmpty {
+                logger.info("Config file empty or no valid bindings, using defaults")
+                return defaultBindings()
+            }
+            logger.info("Loaded \(parsed.count) keybindings from config")
+            return parsed
         }
+        logger.debug("No config file at \(configPath), using defaults")
         return defaultBindings()
     }
 
@@ -82,10 +90,16 @@ enum IDEKeybindConfig {
             guard !keyPart.isEmpty, !actionPart.isEmpty else { continue }
 
             // Parse modifiers + key
-            guard let (mods, code) = parseKey(keyPart) else { continue }
+            guard let (mods, code) = parseKey(keyPart) else {
+                logger.warning("Unrecognized key in config: '\(keyPart)'")
+                continue
+            }
 
             // Parse action
-            guard let action = parseAction(actionPart) else { continue }
+            guard let action = parseAction(actionPart) else {
+                logger.warning("Unrecognized action in config: '\(actionPart)'")
+                continue
+            }
 
             bindings.append(IDEKeybinding(modifiers: mods, keyCode: code, action: action))
         }

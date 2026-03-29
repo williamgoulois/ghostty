@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import OSLog
 
 /// Manages the lifecycle of IDE workspaces within a single window.
 ///
@@ -12,6 +13,7 @@ import Foundation
 /// which workspaces appear in the bottom bar. No surface lifecycle cost.
 final class WorkspaceController: ObservableObject {
     static let shared = WorkspaceController()
+    private static let logger = IDELogger.make(for: WorkspaceController.self)
 
     // MARK: - Terminal Controller Bridge
 
@@ -192,8 +194,7 @@ final class WorkspaceController: ObservableObject {
                     }
                 }
             } catch {
-                NSLog("[GhosttyIDE] Tree restore failed, creating blank: %@",
-                      error.localizedDescription)
+                Self.logger.error("Tree restore failed, creating blank surface: \(error.localizedDescription)")
                 guard let appDelegate = NSApp.delegate as? AppDelegate,
                       let ghostty_app = appDelegate.ghostty.app else { return }
                 let surface = Ghostty.SurfaceView(ghostty_app, baseConfig: nil)
@@ -576,7 +577,7 @@ final class WorkspaceController: ObservableObject {
         do {
             try IDESessionStore.shared.save(session)
         } catch {
-            NSLog("[GhosttyIDE] Auto-save session failed: %@", error.localizedDescription)
+            Self.logger.error("Auto-save session failed: \(error.localizedDescription)")
         }
     }
 

@@ -1,9 +1,11 @@
 import Foundation
+import OSLog
 
 /// Detects the current git branch for a given directory.
 /// Runs `git rev-parse --abbrev-ref HEAD` on a background queue.
 final class GitBranchProvider {
     static let shared = GitBranchProvider()
+    private static let logger = IDELogger.make(for: GitBranchProvider.self)
 
     private let queue = DispatchQueue(label: "ghosttyide.git-branch", qos: .utility)
 
@@ -33,10 +35,14 @@ final class GitBranchProvider {
             try process.run()
             process.waitUntilExit()
         } catch {
+            Self.logger.debug("git rev-parse failed at \(path): \(error.localizedDescription)")
             return nil
         }
 
-        guard process.terminationStatus == 0 else { return nil }
+        guard process.terminationStatus == 0 else {
+            Self.logger.debug("git rev-parse exited with status \(process.terminationStatus) at \(path)")
+            return nil
+        }
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         guard let output = String(data: data, encoding: .utf8) else { return nil }

@@ -1,10 +1,12 @@
 import Foundation
+import OSLog
 
 /// Watches `~/.config/ghosttyide/config` for changes and reloads keybindings.
 ///
 /// Uses GCD `DispatchSource` to monitor the file descriptor for write/rename/delete events.
 final class IDEConfigWatcher {
     static let shared = IDEConfigWatcher()
+    private static let logger = IDELogger.make(for: IDEConfigWatcher.self)
 
     private var source: DispatchSourceFileSystemObject?
     private var fileDescriptor: Int32 = -1
@@ -14,10 +16,16 @@ final class IDEConfigWatcher {
         stop()
 
         let path = IDEKeybindConfig.configPath
-        guard FileManager.default.fileExists(atPath: path) else { return }
+        guard FileManager.default.fileExists(atPath: path) else {
+            Self.logger.debug("Config file not found, skipping watch: \(path)")
+            return
+        }
 
         let fd = open(path, O_EVTONLY)
-        guard fd >= 0 else { return }
+        guard fd >= 0 else {
+            Self.logger.error("Failed to open config file for watching: \(path)")
+            return
+        }
         fileDescriptor = fd
 
         let source = DispatchSource.makeFileSystemObjectSource(
@@ -27,6 +35,7 @@ final class IDEConfigWatcher {
         )
 
         source.setEventHandler { [weak self] in
+            IDEConfigWatcher.logger.info("Config file changed, reloading keybindings")
             IDEKeybindRegistry.shared.reload()
 
             // If the file was deleted or renamed, restart watching
@@ -54,6 +63,7 @@ final class IDEConfigWatcher {
 
     /// Restart watching (after file delete/rename).
     private func restart() {
+        Self.logger.debug("Config file deleted/renamed, scheduling re-watch")
         stop()
         // Small delay to let the editor finish writing
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in

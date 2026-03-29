@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 enum WorkspaceStoreError: LocalizedError {
     case invalidName(String)
@@ -27,6 +28,7 @@ enum WorkspaceStoreError: LocalizedError {
 /// Uses timestamped files with symlinks (tmux resurrect pattern).
 final class WorkspaceStore {
     static let shared = WorkspaceStore()
+    private static let logger = IDELogger.make(for: WorkspaceStore.self)
 
     // swiftlint:disable:next force_try
     private let namePattern = try! NSRegularExpression(pattern: "^[a-zA-Z0-9._-]+$")
@@ -67,6 +69,7 @@ final class WorkspaceStore {
             try fm.removeItem(at: symlinkPath)
         }
         try fm.createSymbolicLink(at: symlinkPath, withDestinationURL: filePath)
+        Self.logger.info("Saved project '\(project.name)' to \(filename)")
     }
 
     /// Load a project file by name (follows symlink).
@@ -86,7 +89,9 @@ final class WorkspaceStore {
         }
 
         do {
-            return try JSONDecoder().decode(ProjectFile.self, from: data)
+            let project = try JSONDecoder().decode(ProjectFile.self, from: data)
+            Self.logger.debug("Loaded project '\(name)'")
+            return project
         } catch {
             throw WorkspaceStoreError.decodeFailed(error.localizedDescription)
         }
@@ -113,6 +118,7 @@ final class WorkspaceStore {
                 try fm.removeItem(at: file)
             }
         }
+        Self.logger.info("Deleted project '\(name)'")
     }
 
     /// List all saved projects by reading symlinks in the directory.
@@ -154,6 +160,8 @@ final class WorkspaceStore {
             do {
                 try fm.createDirectory(at: baseDir, withIntermediateDirectories: true)
             } catch {
+                let dirPath = baseDir.path
+                Self.logger.error("Failed to create projects directory: \(dirPath)")
                 throw WorkspaceStoreError.directoryCreationFailed(baseDir.path)
             }
         }

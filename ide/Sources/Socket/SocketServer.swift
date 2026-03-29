@@ -6,7 +6,8 @@ import OSLog
 final class IDESocketServer {
     static let shared = IDESocketServer()
 
-    private let logger = Logger(subsystem: "com.ghosttyide", category: "SocketServer")
+    private static let logger = IDELogger.make(for: IDESocketServer.self)
+    private static let maxMessageSize = 1_048_576 // 1 MB
     private var serverFD: Int32 = -1
     private(set) var socketPath: String = ""
     private var running = false
@@ -30,7 +31,7 @@ final class IDESocketServer {
                 try? FileManager.default.removeItem(atPath: wellKnownPath)
                 try listen(at: socketPath)
             } catch {
-                logger.error("Failed to start socket server: \(error)")
+                Self.logger.error("Failed to start socket server: \(error)")
             }
         }
     }
@@ -43,7 +44,7 @@ final class IDESocketServer {
         }
         try? FileManager.default.removeItem(atPath: socketPath)
         try? FileManager.default.removeItem(atPath: "/tmp/ghosttyide.sock")
-        logger.info("IDE socket server stopped")
+        Self.logger.info("IDE socket server stopped")
     }
 
     private func listen(at path: String) throws {
@@ -86,12 +87,12 @@ final class IDESocketServer {
 
         running = true
         try? FileManager.default.createSymbolicLink(atPath: "/tmp/ghosttyide.sock", withDestinationPath: path)
-        logger.info("IDE socket server listening on \(path)")
+        Self.logger.info("IDE socket server listening on \(path)")
 
         while running {
             let clientFD = accept(serverFD, nil, nil)
             guard clientFD >= 0 else {
-                if running { logger.warning("accept() failed: \(errno)") }
+                if running { Self.logger.warning("accept() failed: \(errno)") }
                 continue
             }
             handleClient(clientFD)
@@ -130,6 +131,10 @@ final class IDESocketServer {
             let n = read(fd, buf, bufSize)
             if n > 0 {
                 data.append(buf, count: n)
+                if data.count > Self.maxMessageSize {
+                    Self.logger.warning("Client exceeded max message size (\(Self.maxMessageSize) bytes), disconnecting")
+                    return nil
+                }
                 if n < bufSize { break }
             } else {
                 break
@@ -139,9 +144,17 @@ final class IDESocketServer {
     }
 
     private func writeResponse(fd: Int32, response: IDEResponse) {
-        guard let data = try? JSONEncoder().encode(response) else { return }
+        guard let data = try? JSONEncoder().encode(response) else {
+            Self.logger.error("Failed to encode response")
+            return
+        }
         data.withUnsafeBytes { ptr in
-            _ = write(fd, ptr.baseAddress!, ptr.count)
+            let written = write(fd, ptr.baseAddress!, ptr.count)
+            if written < 0 {
+                Self.logger.error("write() failed: errno=\(errno)")
+            } else if written < ptr.count {
+                Self.logger.warning("Partial write: \(written)/\(ptr.count) bytes")
+            }
         }
     }
 
