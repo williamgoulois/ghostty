@@ -86,7 +86,7 @@ See `CLAUDE.md` for build commands, key files, CLI usage, and testing.
 
 ---
 
-## Phase 7: Visual & UX Design
+## Phase 7: Visual & UX Design ✅
 
 **Goal:** Define GhosttyIDE's visual identity. Chosen layout: **Top Bar + Bottom Bar**.
 
@@ -127,7 +127,7 @@ Tasks:
 
 ---
 
-## Phase 8: Keybindings & Config
+## Phase 8: Keybindings & Config ✅
 
 **Goal:** IDE-specific keybindings and configuration, layered on top of Ghostty's config.
 
@@ -146,7 +146,7 @@ Tasks:
 
 ---
 
-## Phase 9a: Fix Workspace Tree Swapping
+## Phase 9: Workspace Tree Swapping ✅
 
 **Goal:** Workspaces currently all display the same terminal content. Fix so each workspace has its own split tree.
 
@@ -157,7 +157,7 @@ Tasks:
 
 ---
 
-## Phase 9b: Session Persistence
+## Phase 10: Session Persistence ✅
 
 **Goal:** Auto-save workspace metadata on quit, silently restore on launch (tmux-resurrect style).
 
@@ -171,7 +171,7 @@ Tasks:
 
 ---
 
-## Phase 9c: Notification Wiring
+## Phase 11: Notification Wiring ✅
 
 **Goal:** Connect the notification system end-to-end with per-pane unread tracking.
 
@@ -191,7 +191,7 @@ Tasks:
 
 ---
 
-## Phase 9d: Branding + Project Picker + Project Rename
+## Phase 12: Branding + Project Picker + Project Rename ✅
 
 **Goal:** Rebrand user-visible strings to "GhosttyIDE", add `Cmd+P` project picker with "New Project" creation, and add project rename.
 
@@ -221,43 +221,7 @@ Testing:
 
 ---
 
-## Phase 9e: Empty State UX
-
-**Goal:** Define what the user sees when launching with no workspaces (fresh install or after closing everything).
-
-**Current behavior (after stale project fix):** Top bar shows "No workspace", no project badge, bottom bar is empty. Terminal pane works but has no workspace association.
-
-**Option A — Auto-bootstrap (recommended):**
-- On launch, if `workspaces.isEmpty` after session restore, auto-create a "default" workspace in a "default" project for the initial terminal surface
-- User always has at least one workspace — closer to tmux behavior (always in a session)
-- `cmd+n` still creates additional workspaces; the auto-created one is just a starting point
-- If the user renames the project/workspace, the rename sticks across restarts
-
-**Option B — Welcome prompt:**
-- Show a lightweight overlay or auto-open the project picker when no workspaces exist
-- User picks or creates a project before the terminal is associated with a workspace
-- More explicit but adds friction to first launch
-
-Tasks:
-- [ ] Decide approach (A or B)
-- [ ] Implement chosen approach
-- [ ] Ensure closing the auto-created workspace still works cleanly (no stale state)
-
----
-
-## Phase 9f: Visual Polish
-
-**Goal:** Refine bars, pills, and chrome for daily-driver quality.
-
-- [ ] Top/bottom bar background: `Color(nsColor:).opacity(0.85)` → `.ultraThinMaterial`
-- [ ] Add thin `Divider()` between bars and content
-- [ ] Improve inactive pill contrast (too low against dark backgrounds)
-- [ ] Add workspace pill hover state
-- [ ] Deduplicate `agentIcon()`/`agentColor()` into `AgentState` extension
-
----
-
-## Phase 9g: Logging + Error Handling
+## Phase 13: Logging + Error Handling
 
 **Goal:** Add structured logging across all IDE components and harden the socket server.
 
@@ -267,7 +231,7 @@ Tasks:
 
 ---
 
-## Phase 9h: Workflow Tests
+## Phase 14: Workflow Tests
 
 **Goal:** Replace granular unit tests with real-workflow scenario tests.
 
@@ -279,7 +243,102 @@ Tasks:
 
 ---
 
-## Phase 9i: IDE Framework Module (Optional)
+## Phase 15: Neovim → Agent File Sending
+
+**Goal:** Send files/selections from Neovim to Claude Code or OpenCode sessions running in GhosttyIDE panes. Port the cmux `mux-send.lua` pattern to GhosttyIDE's socket protocol.
+
+**How cmux does it (reference: `~/cmux` + `~/.config/nvim/lua/config/mux-send.lua`):**
+1. Discovery: `cmux list-panes` + `cmux list-pane-surfaces` to find other terminal panes
+2. Delivery: `cmux set-buffer --name nvim-send -- <text>` + `cmux paste-buffer --name nvim-send --surface <ref>` (handles multi-line reliably)
+3. Format: files sent as `@relative/path` (agents interpret `@` as file reference)
+4. Focus: `cmux focus-pane` after send so user can review before submitting
+
+**GhosttyIDE approach:** Simpler — no buffer indirection needed. Use `ghostty_surface_text()` C API to inject text directly into a target surface via a new socket command.
+
+### New socket commands
+
+**`pane.send-text`** — inject text into a pane's terminal input:
+```json
+{"command": "pane.send-text", "args": {"id": "<surface-uuid>", "text": "@src/main.swift\n@src/app.swift"}}
+```
+Implementation: look up surface by UUID, call `ghostty_surface_text(surface, text, len)`.
+
+**`pane.list` enhancement** — add `foreground_process` field to detect agent sessions:
+```json
+{"panes": [
+  {"id": "...", "title": "claude", "pwd": "/project", "foreground_process": "claude", "focused": false},
+  {"id": "...", "title": "zsh", "pwd": "/project", "foreground_process": "nvim", "focused": true}
+]}
+```
+Uses existing `ghostty_surface_foreground_pid()` + `proc_name()` to get the process name. Enables Neovim to auto-filter for agent panes (claude, opencode).
+
+### New CLI commands
+
+```bash
+ide pane send-text <id> "text to send"       # inject text into a pane
+ide pane send-text <id> --file <path>         # read file, send as @relative/path
+ide pane list --json                          # already exists, enhanced with foreground_process
+```
+
+### Neovim plugin
+
+Port `mux-send.lua` → `ide-send.lua` for GhosttyIDE. Detects `GHOSTTYIDE_SOCKET` env var, uses `ide` CLI.
+
+```
+ide/Resources/nvim/
+└── lua/
+    └── ghosttyide/
+        └── send.lua        # Neovim module: discover agent panes, send files/selections
+```
+
+**Keybindings (same as cmux mux-send):**
+| Binding | Function | Description |
+|---------|----------|-------------|
+| `<leader>af` | `send_file()` | Send current file as `@relative/path` |
+| `<leader>ab` | `send_buffers()` | Send all open buffers as `@path` lines |
+| `<leader>av` | `send_selection()` | Send visual selection text |
+| `<leader>as` | `select_target()` | Pick target pane (auto-filters for claude/opencode) |
+
+**Discovery flow:**
+1. `ide pane list --json` → parse JSON, filter by `foreground_process` ∈ {claude, opencode}
+2. If only one agent pane → auto-select as target
+3. If multiple → `vim.ui.select()` picker
+4. After send → `ide pane focus <id>` to switch to agent pane
+
+**Setup in user's nvim config:**
+```lua
+-- ~/.config/nvim/lua/config/mux-send.lua (extend existing)
+if vim.env.GHOSTTYIDE_SOCKET then
+  require("ghosttyide.send").setup()
+elseif vim.env.CMUX_WORKSPACE_ID then
+  -- existing cmux setup
+end
+```
+
+### Tasks
+
+- [ ] Implement `pane.send-text` socket command (use `ghostty_surface_text()` C API)
+- [ ] Enhance `pane.list` to include `foreground_process` (via `ghostty_surface_foreground_pid()` + `proc_name()`)
+- [ ] Add `ide pane send-text` CLI command
+- [ ] Write `ide/Resources/nvim/lua/ghosttyide/send.lua` — Neovim plugin
+- [ ] Update `mux-send.lua` / nvim config to detect GhosttyIDE and use the plugin
+- [ ] Integration tests: pane.send-text, pane.list with foreground_process
+
+---
+
+## Phase 16: Visual Polish
+
+**Goal:** Refine bars, pills, and chrome for daily-driver quality.
+
+- [ ] Top/bottom bar background: `Color(nsColor:).opacity(0.85)` → `.ultraThinMaterial`
+- [ ] Add thin `Divider()` between bars and content
+- [ ] Improve inactive pill contrast (too low against dark backgrounds)
+- [ ] Add workspace pill hover state
+- [ ] Deduplicate `agentIcon()`/`agentColor()` into `AgentState` extension
+
+---
+
+## Phase 17: IDE Framework Module (Optional)
 
 **Goal:** Extract `ide/Sources/` into a separate Swift framework target for proper module boundaries.
 
@@ -312,7 +371,7 @@ Tasks:
 
 ---
 
-## Phase 10: WebKit Browser Panel
+## Phase 18: WebKit Browser Panel
 
 **Goal:** Embed WKWebView as a split pane alongside terminals.
 
@@ -334,3 +393,26 @@ Tasks:
 - [ ] Wire into socket commands: `browser.open`, `browser.back`, `browser.forward`, `browser.reload`, `browser.url`
 - [ ] DevTools toggle (WKWebView inspector)
 
+---
+
+## Phase 19: Empty State UX
+
+**Goal:** Define what the user sees when launching with no workspaces (fresh install or after closing everything).
+
+**Current behavior (after stale project fix):** Top bar shows "No workspace", no project badge, bottom bar is empty. Terminal pane works but has no workspace association.
+
+**Option A — Auto-bootstrap (recommended):**
+- On launch, if `workspaces.isEmpty` after session restore, auto-create a "default" workspace in a "default" project for the initial terminal surface
+- User always has at least one workspace — closer to tmux behavior (always in a session)
+- `cmd+n` still creates additional workspaces; the auto-created one is just a starting point
+- If the user renames the project/workspace, the rename sticks across restarts
+
+**Option B — Welcome prompt:**
+- Show a lightweight overlay or auto-open the project picker when no workspaces exist
+- User picks or creates a project before the terminal is associated with a workspace
+- More explicit but adds friction to first launch
+
+Tasks:
+- [ ] Decide approach (A or B)
+- [ ] Implement chosen approach
+- [ ] Ensure closing the auto-created workspace still works cleanly (no stale state)
