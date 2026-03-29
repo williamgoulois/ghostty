@@ -221,13 +221,14 @@ Testing:
 
 ---
 
-## Phase 13: Logging + Error Handling
+## Phase 13: Logging + Error Handling ✅
 
 **Goal:** Add structured logging across all IDE components and harden the socket server.
 
-- [ ] `IDELogger.swift` with per-component `Logger` instances (OSLog)
-- [ ] Add logging to: GitBranchProvider, IDEConfigWatcher, WorkspaceStore, SocketServer silent failures
-- [ ] Socket resilience: max message size (1MB), write() return check
+- [x] `IDELogger.swift` with per-component `Logger` instances (OSLog)
+- [x] Add logging to: CommandRouter (request/response tracing), GitBranchProvider, IDEConfigWatcher, IDEKeybindConfig, WorkspaceStore, WorkspaceController
+- [x] Socket resilience: max message size (1MB), write() return check
+- [x] Replace NSLog calls with structured Logger
 
 ---
 

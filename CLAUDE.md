@@ -60,6 +60,7 @@ Zig 0.15.2's linker cannot parse macOS 26 SDK `.tbd` files because Apple dropped
 
 ## Key Files (IDE additions)
 
+- `ide/Sources/Logging/IDELogger.swift` — Centralized Logger factory (OSLog, subsystem `com.ghosttyide`)
 - `ide/Sources/Socket/SocketServer.swift` — POSIX Unix socket listener on `/tmp/ghosttyide.sock`
 - `ide/Sources/Socket/CommandRouter.swift` — JSON command dispatch
 - `ide/Sources/Socket/CommandProtocol.swift` — Command/response types with AnyCodable
@@ -126,12 +127,34 @@ swift run ide session save|info
 swift run ide raw <command> -a key=value
 ```
 
+## Logging
+
+All IDE components log via Apple's `os.log` (OSLog) under subsystem `com.ghosttyide`. Each component has its own category (e.g. `IDESocketServer`, `IDECommandRouter`, `WorkspaceController`).
+
+```bash
+# Stream all IDE logs in real time
+log stream --predicate 'subsystem == "com.ghosttyide"'
+
+# Filter by component
+log stream --predicate 'subsystem == "com.ghosttyide" AND category == "IDECommandRouter"'
+
+# Search recent logs (last 5 minutes)
+log show --predicate 'subsystem == "com.ghosttyide"' --last 5m
+
+# Filter by level (debug, info, default, error, fault)
+log stream --predicate 'subsystem == "com.ghosttyide"' --level debug
+```
+
+**Log levels used:** `.debug` for command tracing and expected failures (git in non-git dirs), `.info` for lifecycle events (config reload, project save), `.warning` for client mistakes (unknown commands, bad config lines), `.error` for actual failures (write errors, decode failures).
+
+**Note:** `.debug` messages are only captured when streaming live (`log stream`) or when explicitly enabled. They are not persisted to disk by default.
+
 ## Testing
 
 ```bash
 # Integration tests (requires GhosttyIDE running + CLI built)
 python3 ide/Tests/test_socket.py
 
-# 108 tests: socket protocol (13), project (10), workspace (25),
-# notify (9), status (9), session (4), CLI (38)
+# 115 tests: socket protocol (14), project (10), workspace (25),
+# notify (9), status (10), session (4), CLI (43)
 ```

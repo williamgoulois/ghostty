@@ -132,6 +132,33 @@ def test_invalid_json():
     assert "Invalid JSON" in resp["error"]
 
 
+def test_oversized_message():
+    """Send a message > 1 MB and verify the server drops the connection (no response)."""
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(5)
+    sock.connect(SOCKET_PATH)
+    # Build a JSON payload over 1 MB (1,048,576 bytes)
+    big_value = "x" * (1_048_577 + 100)
+    payload = json.dumps({"command": "help", "args": {"data": big_value}}).encode()
+    assert len(payload) > 1_048_576, f"Payload too small: {len(payload)}"
+    try:
+        sock.sendall(payload)
+        sock.shutdown(socket.SHUT_WR)
+    except (BrokenPipeError, ConnectionResetError):
+        # Server may drop connection before we finish sending — that's fine
+        sock.close()
+        return
+    data = b""
+    while True:
+        chunk = sock.recv(4096)
+        if not chunk:
+            break
+        data += chunk
+    sock.close()
+    # Server should return no response (connection dropped)
+    assert len(data) == 0, f"Expected empty response for oversized message, got {len(data)} bytes"
+
+
 def test_pane_split_invalid_direction():
     resp = send_command({"command": "pane.split", "args": {"direction": "diagonal"}})
     assert_eq(resp["ok"], False)
@@ -1064,6 +1091,7 @@ if __name__ == "__main__":
     test("pane.list", test_pane_list)
     test("unknown command", test_unknown_command)
     test("invalid JSON", test_invalid_json)
+    test("oversized message (>1MB)", test_oversized_message)
     test("pane.split invalid direction", test_pane_split_invalid_direction)
     test("pane.focus missing id", test_pane_focus_missing_id)
     test("pane.close bad id", test_pane_close_bad_id)
