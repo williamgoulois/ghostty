@@ -153,6 +153,24 @@ log stream --predicate 'subsystem == "com.ghosttyide"' --level debug
 
 ## Testing
 
+### Swift tests (in-process, fast, deterministic)
+
+Tests command handler logic directly via `IDECommandRouter.dispatch()` — no running app, no socket, no flakiness.
+
+```bash
+# Run all Swift tests (requires GhosttyIDE built via xcodebuild)
+xcodebuild test -scheme GhosttyIDETests -configuration Debug -destination 'platform=macOS'
+
+# 66 tests across 6 suites:
+# CommandRouterTests (6), PaneCommandTests (22), WorkspaceCommandTests (22),
+# NotifyCommandTests (5), StatusCommandTests (5), SessionCommandTests (2)
+# + parametrized test expansions
+```
+
+Test files: `ide/Tests/Swift/` — uses Swift Testing framework (`@Test`, `#expect`), Xcode target `GhosttyIDETests`.
+
+### Python tests (integration, requires running app)
+
 Uses pytest with fixtures in `conftest.py`. Requires a venv: `cd ide/Tests && python3 -m venv .venv && .venv/bin/pip install pytest`.
 
 ```bash

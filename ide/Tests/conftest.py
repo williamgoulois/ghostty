@@ -300,10 +300,13 @@ def cli():
     if not os.path.isfile(candidate):
         pytest.skip("CLI not built (run: cd ide/CLI && swift build)")
 
+    # Bypass pyenv shims to avoid lock contention during rapid CLI invocations
+    cli_env = {**os.environ, "PYENV_VERSION": ""}
+
     def _run(*args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
             [candidate] + list(args),
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=10, env=cli_env,
         )
 
     return _run
