@@ -1028,6 +1028,12 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         #if GHOSTTY_IDE
         // Wire this controller so WorkspaceController can swap surfaceTrees.
         WorkspaceController.shared.terminalController = self
+        // Activate workspace after windowDidLoad finishes setting up the initial
+        // surface tree and content view. Must be async because switchTo() replaces
+        // surfaceTree, which would conflict with the setup below.
+        DispatchQueue.main.async {
+            WorkspaceController.shared.activateRestoredSession()
+        }
         #endif
 
         // I copy this because we may change the source in the future but also because

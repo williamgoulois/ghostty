@@ -540,13 +540,33 @@ final class WorkspaceController: ObservableObject {
 
     /// Activate the workspace deferred during restore. Call after terminalController is wired.
     func activateRestoredSession() {
-        guard let name = pendingActiveWorkspaceName else { return }
+        let name = pendingActiveWorkspaceName
         pendingActiveWorkspaceName = nil
 
-        if let ws = filteredWorkspaces.first(where: { $0.name == name }) {
+        if let name, let ws = filteredWorkspaces.first(where: { $0.name == name }) {
             switchTo(workspace: ws)
         } else if let first = filteredWorkspaces.first {
             switchTo(workspace: first)
+        } else {
+            // No session or empty session — create default project + workspace
+            ensureDefaultWorkspace()
+        }
+    }
+
+    /// Guarantee at least one workspace exists. Creates project "default" / workspace "main"
+    /// and adopts the terminal controller's existing surface tree (created during window setup).
+    private func ensureDefaultWorkspace() {
+        guard workspaces.isEmpty else { return }
+        Self.logger.info("No workspaces found, creating default workspace")
+        activeProject = "default"
+        let ws = addWorkspace(name: "main", project: "default")
+
+        // Adopt the existing surface tree rather than creating a new surface,
+        // since TerminalController already set one up during windowDidLoad.
+        activeWorkspace = ws
+        if let ctrl = terminalController {
+            ws.splitTree = ctrl.surfaceTree
+            ws.focusedSurface = ctrl.focusedSurface
         }
     }
 

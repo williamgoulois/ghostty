@@ -52,9 +52,9 @@ def _send_command(cmd: dict, sock_path: str = SOCKET_PATH, retries: int = 2) -> 
                 data += chunk
             sock.close()
             return json.loads(data)
-        except OSError:
+        except (OSError, json.JSONDecodeError):
             if attempt < retries:
-                time.sleep(0.1)
+                time.sleep(0.2)
                 continue
             raise
 

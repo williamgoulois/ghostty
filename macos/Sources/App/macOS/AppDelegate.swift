@@ -383,9 +383,8 @@ class AppDelegate: NSObject,
             }
 
             #if GHOSTTY_IDE
-            // Activate the workspace deferred during session restore
-            // (terminalController is now wired after window creation).
-            WorkspaceController.shared.activateRestoredSession()
+            // Session activation moved to TerminalController.windowDidLoad —
+            // showWindow is async so terminalController isn't wired yet here.
             #endif
         }
     }
