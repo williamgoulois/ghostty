@@ -249,7 +249,18 @@ Testing:
 
 ---
 
-## Phase 15: Neovim → Agent File Sending
+## Phase 15: Rename Keybinds ✅
+
+**Goal:** Dedicated keybindings for renaming workspace and project.
+
+- [x] `workspaceRename` and `projectRename` IDE actions (existed since Phase 12)
+- [x] NSAlert rename prompts with prefilled text fields (existed since Phase 12)
+- [x] Command palette entries "Workspace: Rename" and "Project: Rename" (existed since Phase 12)
+- [x] Default keybinds: **Cmd+R** → workspace rename, **Cmd+Shift+R** → project rename
+
+---
+
+## Phase 16: Neovim → Agent File Sending
 
 **Goal:** Send files/selections from Neovim to Claude Code or OpenCode sessions running in GhosttyIDE panes. Port the cmux `mux-send.lua` pattern to GhosttyIDE's socket protocol.
 
@@ -332,7 +343,7 @@ end
 
 ---
 
-## Phase 16: Visual Polish
+## Phase 17: Visual Polish
 
 **Goal:** Refine bars, pills, and chrome for daily-driver quality.
 
@@ -344,7 +355,7 @@ end
 
 ---
 
-## Phase 17: IDE Framework Module (Optional)
+## Phase 18: IDE Framework Module (Optional)
 
 **Goal:** Extract `ide/Sources/` into a separate Swift framework target for proper module boundaries.
 
@@ -377,7 +388,7 @@ end
 
 ---
 
-## Phase 18: WebKit Browser Panel
+## Phase 19: WebKit Browser Panel
 
 **Goal:** Embed WKWebView as a split pane alongside terminals.
 
@@ -401,7 +412,7 @@ Tasks:
 
 ---
 
-## Phase 19: Empty State UX
+## Phase 20: Empty State UX
 
 **Goal:** Define what the user sees when launching with no workspaces (fresh install or after closing everything).
 

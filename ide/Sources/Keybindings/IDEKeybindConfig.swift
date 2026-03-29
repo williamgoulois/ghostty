@@ -186,7 +186,8 @@ enum IDEKeybindConfig {
         b.append(bind([.command, .shift], "o", .workspaceMoveNext))
         b.append(bind([.command, .shift], "i", .workspaceMovePrevious))
         b.append(bind([.command, .shift], "n", .workspaceBreakPane))
-        b.append(bind([.command, .shift], "r", .workspaceRename))
+        b.append(bind(.command, "r", .workspaceRename))
+        b.append(bind([.command, .shift], "r", .projectRename))
 
         // Workspace goto 1-9
         for n in 1...9 {
