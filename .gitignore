@@ -4,6 +4,9 @@
 *.log
 .DS_Store
 .vscode/
+.venv/
+__pycache__/
+.pytest_cache/
 .direnv/
 .envrc.local
 .flatpak-builder/

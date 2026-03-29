@@ -151,10 +151,23 @@ log stream --predicate 'subsystem == "com.ghosttyide"' --level debug
 
 ## Testing
 
-```bash
-# Integration tests (requires GhosttyIDE running + CLI built)
-python3 ide/Tests/test_socket.py
+Uses pytest with fixtures in `conftest.py`. Requires a venv: `cd ide/Tests && python3 -m venv .venv && .venv/bin/pip install pytest`.
 
-# 115 tests: socket protocol (14), project (10), workspace (25),
-# notify (9), status (10), session (4), CLI (43)
+```bash
+# All tests (requires GhosttyIDE running + CLI built)
+ide/Tests/run_all.py
+
+# Run specific test module
+ide/Tests/.venv/bin/pytest ide/Tests/test_workspaces.py
+
+# Run by keyword
+ide/Tests/.venv/bin/pytest -k "workflow"
+
+# Stop on first failure
+ide/Tests/.venv/bin/pytest -x
+
+# 151 tests across 9 modules:
+# test_protocol.py (6), test_panes.py (24), test_projects.py (17),
+# test_workspaces.py (29), test_notifications.py (9), test_status.py (8),
+# test_session.py (4), test_cli.py (49), test_workflows.py (5)
 ```

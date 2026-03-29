@@ -232,15 +232,20 @@ Testing:
 
 ---
 
-## Phase 14: Workflow Tests
+## Phase 14: Workflow Tests ✅
 
-**Goal:** Replace granular unit tests with real-workflow scenario tests.
+**Goal:** Add workflow scenario tests alongside existing granular tests. Extract shared test helpers, add pre-flight instance detection, leverage OSLog for error checking.
 
-- [ ] Workspace lifecycle workflow (create, switch, rename, meta, delete)
-- [ ] Session persistence workflow (save, read JSON, verify structure)
-- [ ] Notification workflow (send, list, clear, verify fields)
-- [ ] Agent status workflow (set, overwrite, clear)
-- [ ] CLI workflow tests (full lifecycle via CLI, --json flag, error codes)
+- [x] Extract shared helpers (`helpers.py`): `send_command`, `TestRunner`, `preflight_check`, `LogCapture`
+- [x] Refactor `test_socket.py` to import from helpers
+- [x] Pre-flight check: detect/kill stale GhosttyIDE instances (`--kill-stale` flag)
+- [x] Workspace lifecycle workflow (create, switch, rename, meta, delete)
+- [x] Session persistence workflow (save, read JSON, verify structure)
+- [x] Notification workflow (send, list, clear, verify fields)
+- [x] Agent status workflow (set, overwrite, clear)
+- [x] CLI workflow tests (full lifecycle via CLI, --json flag, error codes)
+- [x] OSLog error capture during workflows (non-fatal summary)
+- [x] Combined runner (`run_all.py`)
 
 ---
 
@@ -400,13 +405,16 @@ Tasks:
 
 **Goal:** Define what the user sees when launching with no workspaces (fresh install or after closing everything).
 
-**Current behavior (after stale project fix):** Top bar shows "No workspace", no project badge, bottom bar is empty. Terminal pane works but has no workspace association.
+**Current behavior:** Top bar shows "No workspace", project shows "default". Terminal pane works but has no workspace association.
 
-**Option A — Auto-bootstrap (recommended):**
-- On launch, if `workspaces.isEmpty` after session restore, auto-create a "default" workspace in a "default" project for the initial terminal surface
-- User always has at least one workspace — closer to tmux behavior (always in a session)
-- `cmd+n` still creates additional workspaces; the auto-created one is just a starting point
-- If the user renames the project/workspace, the rename sticks across restarts
+**Key challenge:** `TerminalController.newWindow()` dispatches `showWindow()` async, so `windowDidLoad` fires on the NEXT run loop tick — after `applicationDidBecomeActive`. This means `terminalController` isn't wired when `activateRestoredSession()` runs. Surface creation (`Ghostty.SurfaceView`) must happen on the main thread. Socket handlers run on background threads. These constraints make auto-creating workspaces from arbitrary code paths unsafe.
+
+**Option A — Auto-bootstrap:**
+- On launch, if `workspaces.isEmpty` after session restore, auto-create a workspace (project "default", workspace "main")
+- `ensureDefaultWorkspace()` exists in `WorkspaceController` but only works when `terminalController` is wired
+- Must be called from `windowDidLoad` (after controller wiring), NOT from `applicationDidBecomeActive`
+- Must also handle: `workspace.remove` (last workspace removed via socket), `project.switch` (to empty project), dock icon reopen
+- Thread safety: socket handlers can't safely call `switchTo()` (creates NSView). Either defer to main thread or only create metadata and let the next UI event activate
 
 **Option B — Welcome prompt:**
 - Show a lightweight overlay or auto-open the project picker when no workspaces exist
@@ -414,6 +422,8 @@ Tasks:
 - More explicit but adds friction to first launch
 
 Tasks:
-- [ ] Decide approach (A or B)
-- [ ] Implement chosen approach
-- [ ] Ensure closing the auto-created workspace still works cleanly (no stale state)
+- [ ] Fix timing: move `activateRestoredSession()` from `applicationDidBecomeActive` to `windowDidLoad`
+- [ ] Implement `ensureDefaultWorkspace()` that works from both main and background threads
+- [ ] Add `invalidateSurfaces()` to `project.close-all` handler (clean stale surface refs without removing workspaces)
+- [ ] Ensure test cleanup doesn't leave orphaned session data
+- [ ] Test: 4+ consecutive test runs without app crash
