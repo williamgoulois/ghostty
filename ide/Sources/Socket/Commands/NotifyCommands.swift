@@ -10,7 +10,14 @@ extension IDECommandRouter {
             let body = command.args?["body"]?.value as? String ?? ""
             let paneId = command.args?["pane_id"]?.value as? String
 
-            let id = NotificationManager.shared.send(title: title, subtitle: subtitle, body: body, paneId: paneId)
+            // Enrich title with project/workspace context when pane is known
+            var enrichedTitle = title
+            if let paneId,
+               let ws = WorkspaceController.shared.workspace(containingPaneId: paneId) {
+                enrichedTitle = "\(title) — \(ws.project)/\(ws.name)"
+            }
+
+            let id = NotificationManager.shared.send(title: enrichedTitle, subtitle: subtitle, body: body, paneId: paneId)
             return .success([
                 "notification_id": id,
                 "title": title,
