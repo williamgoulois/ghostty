@@ -100,19 +100,15 @@ private struct NotificationRow: View {
                     .lineLimit(2)
             }
 
-            if let paneId = notification.paneId, onJumpToPane != nil {
-                Button("Jump to pane") {
-                    onJumpToPane?(paneId)
-                }
-                .font(.system(size: 10))
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-                .padding(.top, 1)
-            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+        .onTapGesture {
+            if let paneId = notification.paneId {
+                onJumpToPane?(paneId)
+            }
+        }
     }
 
     private func relativeTime(_ date: Date) -> String {
