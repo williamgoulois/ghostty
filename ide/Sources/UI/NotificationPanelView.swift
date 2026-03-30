@@ -86,6 +86,13 @@ private struct NotificationRow: View {
                     .foregroundColor(.secondary)
             }
 
+            if !notification.subtitle.isEmpty {
+                Text(notification.subtitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.primary.opacity(0.7))
+                    .lineLimit(1)
+            }
+
             if !notification.body.isEmpty {
                 Text(notification.body)
                     .font(.system(size: 11))

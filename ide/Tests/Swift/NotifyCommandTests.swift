@@ -18,7 +18,33 @@ struct NotifyCommandTests {
         #expect(response.error == "Missing 'title' argument")
     }
 
+    @Test func sendWithSubtitleSucceeds() {
+        let response = router.dispatch(TestCommand.make("notify.send", args: [
+            "title": "Agent",
+            "subtitle": "Task complete",
+            "body": "I updated the login flow",
+        ]))
+        #expect(response.ok)
+    }
+
     // MARK: - notify.list
+
+    @Test func listIncludesSubtitle() {
+        // Send a notification with subtitle first
+        _ = router.dispatch(TestCommand.make("notify.send", args: [
+            "title": "Test",
+            "subtitle": "Sub",
+        ]))
+        let response = router.dispatch(TestCommand.make("notify.list"))
+        #expect(response.ok)
+        if let data = response.dataDict,
+           let notifications = data["notifications"] as? [[String: Any]],
+           let last = notifications.last {
+            #expect(last["subtitle"] as? String == "Sub")
+        } else {
+            Issue.record("Expected notification with subtitle")
+        }
+    }
 
     @Test func listReturnsData() {
         let response = router.dispatch(TestCommand.make("notify.list"))

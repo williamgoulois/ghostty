@@ -161,6 +161,11 @@ final class WorkspaceController: ObservableObject {
             lastActivePerProject[current.project] = current.id
         }
 
+        // Cross-project jump: update activeProject so bars + picker stay in sync
+        if workspace.project != activeProject {
+            activeProject = workspace.project
+        }
+
         activeWorkspace = workspace
 
         // Swap tree for incoming workspace

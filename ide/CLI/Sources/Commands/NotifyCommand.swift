@@ -13,6 +13,9 @@ struct Notify: ParsableCommand {
         @Argument(help: "Notification title.")
         var title: String
 
+        @Option(name: .long, help: "Notification subtitle.")
+        var subtitle: String?
+
         @Option(name: .long, help: "Notification body text.")
         var body: String?
 
@@ -24,6 +27,7 @@ struct Notify: ParsableCommand {
         func run() throws {
             let path = try global.resolvedSocketPath()
             var args: [String: Any] = ["title": title]
+            if let subtitle { args["subtitle"] = subtitle }
             if let body { args["body"] = body }
             if let pane { args["pane_id"] = pane }
 
@@ -68,10 +72,12 @@ struct Notify: ParsableCommand {
             }
             for n in notifications {
                 let title = n["title"] as? String ?? "?"
+                let subtitle = n["subtitle"] as? String ?? ""
                 let body = n["body"] as? String ?? ""
                 let ts = n["timestamp"] as? String ?? ""
+                let subtitleStr = subtitle.isEmpty ? "" : " [\(subtitle)]"
                 let bodyStr = body.isEmpty ? "" : " — \(body)"
-                print("\(ts)  \(title)\(bodyStr)")
+                print("\(ts)  \(title)\(subtitleStr)\(bodyStr)")
             }
         }
     }

@@ -16,7 +16,9 @@ Agents can use these to send commands back to the IDE without manual socket disc
 
 ## Claude Code Hooks
 
-Add to your Claude Code `settings.json` (or `.claude/settings.json`):
+Install the hook script to `~/.claude/hooks/ghosttyide/claude-code-notify.sh` (see the script in this repo's commit history or copy from a working install). The script reads Claude Code's transcript JSONL to extract the last assistant message for rich notifications.
+
+Add to your Claude Code `~/.claude/settings.json`:
 
 ```json
 {
@@ -27,7 +29,8 @@ Add to your Claude Code `settings.json` (or `.claude/settings.json`):
         "hooks": [
           {
             "type": "command",
-            "command": "ide notify send 'Claude Code' --body 'Waiting for input'"
+            "command": "~/.claude/hooks/ghosttyide/claude-code-notify.sh notification",
+            "timeout": 10
           }
         ]
       }
@@ -38,18 +41,8 @@ Add to your Claude Code `settings.json` (or `.claude/settings.json`):
         "hooks": [
           {
             "type": "command",
-            "command": "ide status set claude idle --pane $GHOSTTYIDE_PANE_ID"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "ide status set claude working --pane $GHOSTTYIDE_PANE_ID"
+            "command": "~/.claude/hooks/ghosttyide/claude-code-notify.sh stop",
+            "timeout": 10
           }
         ]
       }
@@ -58,27 +51,32 @@ Add to your Claude Code `settings.json` (or `.claude/settings.json`):
 }
 ```
 
+The hook script:
+- Exits immediately if `$GHOSTTYIDE_SOCKET` is not set (no-op outside GhosttyIDE)
+- Reads the transcript path from Claude Code's hook JSON (stdin)
+- Extracts the last assistant message via `jq` (with grep/sed fallback)
+- Sends: `ide notify send "Claude Code" --subtitle "Waiting for input" --body "<last message>"`
+
 This gives you:
-- **System notification** when Claude Code needs input (like cmux's `cmux notify`)
-- **Status tracking** showing whether Claude is working or idle in each pane
+- **Rich notifications** with the last assistant message in macOS Notification Center + in-app panel
+- **Status tracking** (add `ide status set` hooks separately if desired)
 
 ## OpenCode Integration
 
-OpenCode can use the socket directly or shell out to the CLI. Example plugin pattern:
+Install the plugin to `~/.config/opencode/plugins/ghosttyide-notify.js`. It listens for `session.idle`, `session.error`, and `permission.asked` events and sends rich notifications with event-specific context.
 
-```bash
-# In your OpenCode config, add a post-action hook:
-ide notify send "OpenCode" --body "Task complete" --pane $GHOSTTYIDE_PANE_ID
-ide status set opencode "done" --pane $GHOSTTYIDE_PANE_ID
-```
+The plugin:
+- Exits immediately if `$GHOSTTYIDE_SOCKET` is not set (no-op outside GhosttyIDE)
+- Extracts permission details and error messages from event properties
+- Sends: `ide notify send "OpenCode — <project>" --subtitle "Waiting for input" --body "<details>"`
 
 ## CLI Reference
 
 ### Notifications
 
 ```bash
-# Send a notification (appears in macOS Notification Center)
-ide notify send "Title" --body "Optional body" --pane <uuid>
+# Send a notification (appears in macOS Notification Center + in-app panel)
+ide notify send "Title" --subtitle "Optional subtitle" --body "Optional body" --pane <uuid>
 
 # List recent notifications
 ide notify list

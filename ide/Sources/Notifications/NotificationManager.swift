@@ -21,6 +21,7 @@ final class NotificationManager: ObservableObject {
     struct NotificationRecord {
         let id: String
         let title: String
+        let subtitle: String
         let body: String
         let paneId: String?
         let timestamp: Date
@@ -33,11 +34,12 @@ final class NotificationManager: ObservableObject {
 
     /// Send a macOS system notification and store in recent list.
     /// Safe to call from any thread — @Published writes are dispatched to main.
-    func send(title: String, body: String = "", paneId: String? = nil) -> String {
+    func send(title: String, subtitle: String = "", body: String = "", paneId: String? = nil) -> String {
         let id = UUID().uuidString
 
         let content = UNMutableNotificationContent()
         content.title = title
+        if !subtitle.isEmpty { content.subtitle = subtitle }
         if !body.isEmpty { content.body = body }
         content.sound = .default
         if let paneId { content.userInfo["pane_id"] = paneId }
@@ -45,7 +47,7 @@ final class NotificationManager: ObservableObject {
         let request = UNNotificationRequest(identifier: id, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
 
-        let record = NotificationRecord(id: id, title: title, body: body, paneId: paneId, timestamp: Date())
+        let record = NotificationRecord(id: id, title: title, subtitle: subtitle, body: body, paneId: paneId, timestamp: Date())
         recentNotifications.append(record)
         if recentNotifications.count > maxRecent {
             recentNotifications.removeFirst(recentNotifications.count - maxRecent)
@@ -72,6 +74,7 @@ final class NotificationManager: ObservableObject {
             var dict: [String: Any] = [
                 "id": r.id,
                 "title": r.title,
+                "subtitle": r.subtitle,
                 "body": r.body,
                 "timestamp": formatter.string(from: r.timestamp),
             ]

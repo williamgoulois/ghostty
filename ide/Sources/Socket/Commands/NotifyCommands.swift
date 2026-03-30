@@ -6,10 +6,11 @@ extension IDECommandRouter {
             guard let title = command.args?["title"]?.value as? String, !title.isEmpty else {
                 return .failure("Missing 'title' argument")
             }
+            let subtitle = command.args?["subtitle"]?.value as? String ?? ""
             let body = command.args?["body"]?.value as? String ?? ""
             let paneId = command.args?["pane_id"]?.value as? String
 
-            let id = NotificationManager.shared.send(title: title, body: body, paneId: paneId)
+            let id = NotificationManager.shared.send(title: title, subtitle: subtitle, body: body, paneId: paneId)
             return .success([
                 "notification_id": id,
                 "title": title,
