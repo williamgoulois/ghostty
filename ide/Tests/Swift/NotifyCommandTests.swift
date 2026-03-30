@@ -30,6 +30,8 @@ struct NotifyCommandTests {
     // MARK: - notify.list
 
     @Test func listIncludesSubtitle() {
+        // Clear any notifications from other tests
+        _ = router.dispatch(TestCommand.make("notify.clear"))
         // Send a notification with subtitle first
         _ = router.dispatch(TestCommand.make("notify.send", args: [
             "title": "Test",

@@ -25,7 +25,7 @@ struct IDEBottomBarView: View {
             Spacer(minLength: 0)
 
             // Build marker — bump each rebuild to verify running build
-            Text("b7")
+            Text("b8")
                 .font(.system(size: 9, design: .monospaced))
                 .foregroundColor(.secondary.opacity(0.5))
                 .padding(.trailing, 6)

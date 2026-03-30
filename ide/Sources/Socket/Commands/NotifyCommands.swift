@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 extension IDECommandRouter {
@@ -9,6 +10,13 @@ extension IDECommandRouter {
             let subtitle = command.args?["subtitle"]?.value as? String ?? ""
             let body = command.args?["body"]?.value as? String ?? ""
             let paneId = command.args?["pane_id"]?.value as? String
+
+            // Suppress notification if the pane is currently focused and app is active
+            if let paneId, NSApp.isActive,
+               let focused = (NSApp.keyWindow?.windowController as? BaseTerminalController)?.focusedSurface,
+               focused.id.uuidString == paneId {
+                return .success(["suppressed": true])
+            }
 
             // Enrich title with project/workspace context when pane is known
             var enrichedTitle = title
