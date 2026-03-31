@@ -6,6 +6,8 @@ struct IDETopBarView: View {
     @ObservedObject var controller: WorkspaceController
     @ObservedObject private var notificationManager = NotificationManager.shared
     @State private var showNotificationPanel = false
+    @State private var showProcessPanel = false
+    @State private var showPortPanel = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -66,8 +68,29 @@ struct IDETopBarView: View {
                     )
                 }
 
-                // Extensible metadata entries
-                ForEach(Array(ws.metadata.values).sorted(by: { $0.key < $1.key }), id: \.key) { entry in
+                // Port chips (click = focus pane, ⌘+click = open browser)
+                if let snapshot = ws.processSnapshot {
+                    ForEach(snapshot.ports) { port in
+                        IDEPortChip(
+                            port: port,
+                            onFocusPane: {
+                                controller.jumpToPane(id: port.paneId.uuidString)
+                            },
+                            onOpenBrowser: {
+                                let urlStr = "\(port.scheme)://localhost:\(port.port)"
+                                if let url = URL(string: urlStr) {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }
+                        )
+                    }
+                }
+
+                // Extensible metadata entries (exclude port entries, rendered above)
+                let nonPortMetadata = ws.metadata.values
+                    .filter { !$0.key.hasPrefix("port:") }
+                    .sorted { $0.key < $1.key }
+                ForEach(nonPortMetadata, id: \.key) { entry in
                     IDEMetadataChip(
                         icon: entry.icon ?? "info.circle",
                         text: entry.value,
@@ -99,6 +122,49 @@ struct IDETopBarView: View {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Color.secondary.opacity(0.12))
                     )
+            }
+
+            // Port panel button
+            Button {
+                showPortPanel.toggle()
+            } label: {
+                Image(systemName: "network")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showPortPanel, arrowEdge: .bottom) {
+                PortPanelView(
+                    isPresented: $showPortPanel,
+                    snapshots: ProcessScanner.shared.lastSnapshot,
+                    onJumpToPane: { paneId in
+                        controller.jumpToPane(id: paneId)
+                        showPortPanel = false
+                    }
+                )
+            }
+
+            // Process panel button
+            Button {
+                showProcessPanel.toggle()
+            } label: {
+                Image(systemName: "terminal")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showProcessPanel, arrowEdge: .bottom) {
+                ProcessPanelView(
+                    isPresented: $showProcessPanel,
+                    snapshots: ProcessScanner.shared.lastSnapshot,
+                    onJumpToPane: { paneId in
+                        controller.jumpToPane(id: paneId)
+                        showProcessPanel = false
+                    },
+                    onKillProcess: { pid, signal in
+                        ProcessScanner.shared.killProcess(pid: pid, signal: signal)
+                    }
+                )
             }
 
             // Notification bell — global count across ALL projects/workspaces/panes
@@ -155,6 +221,35 @@ struct IDETopBarView: View {
         case .working: return .blue
         case .waiting: return .orange
         case .error: return .red
+        }
+    }
+}
+
+/// A port chip with click = focus pane, ⌘+click = open in browser.
+struct IDEPortChip: View {
+    let port: DetectedPort
+    let onFocusPane: () -> Void
+    let onOpenBrowser: () -> Void
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "network")
+                .font(.system(size: 9))
+            Text(verbatim: ":\(port.port)")
+                .font(.system(size: 11, design: .monospaced))
+                .lineLimit(1)
+            if port.tls {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 7))
+            }
+        }
+        .foregroundColor(.secondary)
+        .onTapGesture {
+            if NSEvent.modifierFlags.contains(.command) {
+                onOpenBrowser()
+            } else {
+                onFocusPane()
+            }
         }
     }
 }

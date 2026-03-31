@@ -277,15 +277,20 @@ final class WorkspaceController: ObservableObject {
         guard let uuid = UUID(uuidString: paneId),
               let result = findSurface(id: uuid) else { return }
 
+        let needsSwitch = result.workspace.id != activeWorkspace?.id
+
         // Switch workspace if needed (handles cross-project too)
-        if result.workspace.id != activeWorkspace?.id {
+        if needsSwitch {
             switchTo(workspace: result.workspace)
         }
 
-        // Focus the specific pane
-        guard let ctrl = terminalController else { return }
-        ctrl.focusedSurface = result.surface
-        Ghostty.moveFocus(to: result.surface)
+        // Focus the specific pane — deferred so it runs after switchTo's async tree swap
+        let focusSurface = result.surface
+        DispatchQueue.main.async { [weak self] in
+            guard let ctrl = self?.terminalController else { return }
+            ctrl.focusedSurface = focusSurface
+            Ghostty.moveFocus(to: focusSurface)
+        }
     }
 
     // MARK: - Break Pane

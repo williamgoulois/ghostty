@@ -281,7 +281,27 @@ Testing:
 
 ---
 
-## Phase 17: Visual Polish
+## Phase 17: Process & Port Monitor ✅
+
+**Goal:** Auto-discover listening ports, AI agent processes, and long-running processes across all workspaces. Display ports in the top bar, provide kill controls, and keep everything live-updated.
+
+Tasks:
+
+- [x] Data models: `ProcessCategory`, `DetectedProcess`, `DetectedPort`, `WorkspaceProcessSnapshot`
+- [x] `PortDiscovery`: kernel-level port/process-tree discovery via `proc_pidinfo` (no subprocess spawning)
+- [x] `ProcessScanner`: event-driven scanner with `DispatchSource` process watchers, PID classification, kill support
+- [x] `WorkspaceStatusBridge` integration: three-layer scanning (dispatch sources + 10s PID check + burst on change)
+- [x] Top bar: per-port chips (click → focus pane, ⌘+click → open browser), process panel button
+- [x] `ProcessPanelView`: popover with ports, AI agents, running processes sections + kill controls
+- [x] Enriched `pane.list` with `foreground_pid`, `process_category`, `ports`, `agent_status`
+- [x] Socket commands: `process.kill`, `port.list`
+- [x] CLI commands: `ide process kill`, `ide port list`
+- [x] Swift unit tests: `ProcessScannerTests` (6), `ProcessCommandTests` (5)
+- [x] Python integration tests: `test_process.py` (8 tests)
+
+---
+
+## Phase 18: Visual Polish
 
 **Goal:** Refine bars, pills, and chrome for daily-driver quality.
 
@@ -293,7 +313,7 @@ Testing:
 
 ---
 
-## Phase 18: IDE Framework Module (Optional)
+## Phase 19: IDE Framework Module (Optional)
 
 **Goal:** Extract `ide/Sources/` into a separate Swift framework target for proper module boundaries.
 
@@ -326,7 +346,7 @@ Testing:
 
 ---
 
-## Phase 19: WebKit Browser Panel
+## Phase 20: WebKit Browser Panel
 
 **Goal:** Embed WKWebView as a split pane alongside terminals.
 
@@ -350,7 +370,7 @@ Tasks:
 
 ---
 
-## Phase 20: Empty State UX
+## Phase 21: Empty State UX
 
 **Goal:** Define what the user sees when launching with no workspaces (fresh install or after closing everything).
 

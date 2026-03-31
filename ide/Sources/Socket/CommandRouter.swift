@@ -14,6 +14,7 @@ final class IDECommandRouter {
         registerNotifyCommands()
         registerStatusCommands()
         registerSessionCommands()
+        registerProcessCommands()
     }
 
     func register(_ command: String, handler: @escaping (IDECommand) -> IDEResponse) {

@@ -14,6 +14,8 @@ struct GhosttyIDE: ParsableCommand {
             Session.self,
             Notify.self,
             Status.self,
+            Process_.self,
+            Port.self,
             Help_.self,
             Raw.self,
         ],

@@ -7,8 +7,8 @@ struct CommandRouterTests {
 
     @Test func registersAllExpectedCommands() {
         let router = IDECommandRouter()
-        // 31 commands total across all register*Commands() calls
-        #expect(router.handlers.count >= 30)
+        // 33 commands total across all register*Commands() calls (+2 process/port)
+        #expect(router.handlers.count >= 32)
     }
 
     // MARK: - Dispatch

@@ -45,6 +45,9 @@ final class IDEWorkspace: Identifiable, ObservableObject {
     @Published var agentState: AgentState?
     @Published var unreadNotifications: Int = 0
 
+    // Process & port monitoring
+    @Published var processSnapshot: WorkspaceProcessSnapshot?
+
     // Extensible metadata (ports, PR links, custom key-values)
     @Published var metadata: [String: WorkspaceMetadataEntry] = [:]
 

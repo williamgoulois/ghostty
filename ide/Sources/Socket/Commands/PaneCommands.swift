@@ -51,26 +51,49 @@ extension IDECommandRouter {
                 if let fw = filterWorkspace, ws.name != fw { continue }
                 // Foreground process detection
                 var processName: String = ""
+                var foregroundPid: Int = 0
                 if let surfacePtr = surface.surface {
                     let pid = ghostty_surface_foreground_pid(surfacePtr)
                     if pid > 0 {
+                        foregroundPid = Int(pid)
                         processName = IDEProcessInfo.processName(for: pid_t(pid)) ?? ""
                     }
                 }
 
+                // Process category + ports from cached scanner snapshot
+                let category = processName.isEmpty
+                    ? ProcessCategory.unknown.rawValue
+                    : ProcessScanner.classify(processName).rawValue
+                let snapshot = ProcessScanner.shared.lastSnapshot[ws.id]
+                let panePorts = snapshot?.ports
+                    .filter { $0.paneId == surface.id }
+                    .map { Int($0.port) } ?? []
+
+                // Agent status from merged detection
+                let agentStatus: String? = snapshot?.processes
+                    .first(where: { $0.paneId == surface.id && $0.category == .agent })?
+                    .agentStatus
+
                 // Only the active workspace's surfaces are in the window
                 let isFocused = ws.id == activeWsId && surface.focused
 
-                panes.append([
+                var paneDict: [String: Any] = [
                     "id": surface.id.uuidString,
                     "title": surface.title,
                     "pwd": surface.pwd ?? "",
                     "window_id": surface.window?.windowNumber ?? 0,
                     "focused": isFocused,
                     "foreground_process": processName,
+                    "foreground_pid": foregroundPid,
+                    "process_category": category,
+                    "ports": panePorts,
                     "workspace": ws.name,
                     "project": ws.project,
-                ])
+                ]
+                if let agentStatus {
+                    paneDict["agent_status"] = agentStatus
+                }
+                panes.append(paneDict)
             }
             return .success(["panes": panes])
         }

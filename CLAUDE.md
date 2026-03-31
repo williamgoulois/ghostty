@@ -78,6 +78,10 @@ Zig 0.15.2's linker cannot parse macOS 26 SDK `.tbd` files because Apple dropped
 - `ide/Sources/Workspace/WorkspaceStatusBridge.swift` — Wires git branch, agent state, notifications to workspace
 - `ide/Sources/Workspace/GitBranchProvider.swift` — Background git branch detection
 - `ide/Sources/Workspace/IDESessionStore.swift` — Session data model + disk I/O
+- `ide/Sources/Process/ProcessModels.swift` — DetectedProcess, DetectedPort, ProcessCategory, WorkspaceProcessSnapshot
+- `ide/Sources/Process/PortDiscovery.swift` — Kernel-level port/process-tree discovery via proc_pidinfo
+- `ide/Sources/Process/ProcessScanner.swift` — Event-driven process scanner with DispatchSource watchers
+- `ide/Sources/Socket/Commands/ProcessCommands.swift` — process.kill, port.list socket commands
 - `ide/Sources/Notifications/NotificationManager.swift` — macOS notification center bridge + dock badge
 - `ide/Sources/Notifications/StatusStore.swift` — In-memory per-pane key-value status
 - `ide/Sources/Utilities/ProcessInfo.swift` — Shared process name lookup via `proc_name()`
@@ -86,7 +90,8 @@ Zig 0.15.2's linker cannot parse macOS 26 SDK `.tbd` files because Apple dropped
 - `ide/Sources/Keybindings/IDEKeybindRegistry.swift` — Match NSEvent to IDEAction
 - `ide/Sources/Keybindings/IDEActionDispatcher.swift` — Execute IDE + Ghostty actions (vim-aware)
 - `ide/Sources/Keybindings/IDEConfigWatcher.swift` — Config file hot-reload via DispatchSource
-- `ide/Sources/UI/IDETopBarView.swift` — Top bar: workspace metadata, project name, notification bell
+- `ide/Sources/UI/IDETopBarView.swift` — Top bar: workspace metadata, port chips, process panel, notification bell
+- `ide/Sources/UI/ProcessPanelView.swift` — Process & port monitor popover panel
 - `ide/Sources/UI/IDEBottomBarView.swift` — Bottom bar: workspace pills
 - `ide/Sources/UI/NotificationPanelView.swift` — In-app notification panel
 - `ide/Sources/UI/PaneNotificationOverlay.swift` — Pane border overlay for unread notifications
@@ -125,6 +130,8 @@ swift run ide workspace new|switch|next|previous|list|rename|meta|project-switch
 swift run ide notify send "Title" --body "Body"
 swift run ide notify list|clear|status
 swift run ide status set|clear|list
+swift run ide process kill <pid> [--signal NUM]
+swift run ide port list [--workspace <name>]
 swift run ide session save|info
 swift run ide raw <command> -a key=value
 ```
@@ -161,9 +168,10 @@ Tests command handler logic directly via `IDECommandRouter.dispatch()` — no ru
 # Run all Swift tests (requires GhosttyIDE built via xcodebuild)
 xcodebuild test -scheme GhosttyIDETests -configuration Debug -destination 'platform=macOS'
 
-# 66 tests across 6 suites:
+# 80 tests across 8 suites:
 # CommandRouterTests (6), PaneCommandTests (22), WorkspaceCommandTests (22),
-# NotifyCommandTests (5), StatusCommandTests (5), SessionCommandTests (2)
+# NotifyCommandTests (5), StatusCommandTests (5), SessionCommandTests (2),
+# ProcessScannerTests (6), ProcessCommandTests (5)
 # + parametrized test expansions
 ```
 
@@ -186,8 +194,9 @@ ide/Tests/.venv/bin/pytest -k "workflow"
 # Stop on first failure
 ide/Tests/.venv/bin/pytest -x
 
-# 170 tests across 9 modules:
+# 178 tests across 10 modules:
 # test_protocol.py (6), test_panes.py (38), test_projects.py (17),
 # test_workspaces.py (29), test_notifications.py (9), test_status.py (8),
-# test_session.py (4), test_cli.py (54), test_workflows.py (5)
+# test_session.py (4), test_cli.py (54), test_workflows.py (5),
+# test_process.py (8)
 ```

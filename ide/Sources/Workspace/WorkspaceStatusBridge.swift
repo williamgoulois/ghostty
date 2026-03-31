@@ -12,6 +12,8 @@ final class WorkspaceStatusBridge {
 
     private var cancellables = Set<AnyCancellable>()
     private var branchTimer: Timer?
+    private var pidCheckTimer: Timer?
+    private var burstTimers: [Timer] = []
 
     /// Start observing workspace changes and updating status.
     func start() {
@@ -30,6 +32,25 @@ final class WorkspaceStatusBridge {
             self?.refreshGitBranch()
         }
 
+        // Layer 2: Cheap PID-change check every 10s (tcgetpgrp only, ~0.01ms)
+        pidCheckTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            self?.checkPidsAndScanIfChanged()
+        }
+
+        // Layer 1: Wire dispatch source events → burst scan
+        ProcessScanner.shared.onProcessEvent = { [weak self] _, isExit in
+            if isExit {
+                // Process exited — snapshot already updated by scanner, apply to UI
+                self?.applyProcessSnapshots(ProcessScanner.shared.lastSnapshot)
+            } else {
+                // Fork/exec — trigger burst scan (port may bind soon)
+                self?.triggerBurstScan()
+            }
+        }
+
+        // Initial scan
+        performFullScan()
+
         // Recompute workspace unread counts when per-pane unread set changes
         NotificationManager.shared.$unreadPaneIds
             .receive(on: DispatchQueue.main)
@@ -42,6 +63,11 @@ final class WorkspaceStatusBridge {
     func stop() {
         branchTimer?.invalidate()
         branchTimer = nil
+        pidCheckTimer?.invalidate()
+        pidCheckTimer = nil
+        cancelBurstTimers()
+        ProcessScanner.shared.unwatchAll()
+        ProcessScanner.shared.onProcessEvent = nil
         cancellables.removeAll()
     }
 
@@ -55,6 +81,9 @@ final class WorkspaceStatusBridge {
 
         // Sync agent state from StatusStore
         syncAgentState(for: ws)
+
+        // Immediate process/port scan on workspace switch
+        performFullScan()
     }
 
     // MARK: - Git Branch
@@ -138,6 +167,91 @@ final class WorkspaceStatusBridge {
         let ctrl = WorkspaceController.shared
         for ws in ctrl.workspaces {
             ws.unreadNotifications = ctrl.countUnreadPanes(in: ws, unreadPaneIds: unreadPaneIds)
+        }
+    }
+
+    // MARK: - Process & Port Scanning
+
+    /// Layer 2: Cheap PID check — only triggers full scan if something changed.
+    private func checkPidsAndScanIfChanged() {
+        let surfaces = WorkspaceController.shared.allSurfaces()
+        let changed = ProcessScanner.shared.checkForPidChanges(surfaces: surfaces)
+        if !changed.isEmpty {
+            triggerBurstScan()
+        }
+    }
+
+    /// Perform a full process/port scan and apply results.
+    private func performFullScan() {
+        let surfaces = WorkspaceController.shared.allSurfaces()
+        guard !surfaces.isEmpty else { return }
+
+        ProcessScanner.shared.scan(surfaces: surfaces) { [weak self] snapshots in
+            self?.applyProcessSnapshots(snapshots)
+        }
+    }
+
+    /// Layer 3: Burst scan — 3 scans at 0.5s, 2s, 5s after a change event.
+    /// Coalesces multiple triggers within a burst window.
+    private func triggerBurstScan() {
+        // If a burst is already in progress, don't start another
+        guard burstTimers.isEmpty else { return }
+
+        let intervals: [TimeInterval] = [0.5, 2.0, 5.0]
+        for interval in intervals {
+            let timer = Timer.scheduledTimer(
+                withTimeInterval: interval, repeats: false
+            ) { [weak self] _ in self?.performFullScan() }
+            burstTimers.append(timer)
+        }
+
+        // Clean up burst timers after last one fires
+        let cleanupTimer = Timer.scheduledTimer(
+            withTimeInterval: 6.0, repeats: false
+        ) { [weak self] _ in self?.burstTimers.removeAll() }
+        burstTimers.append(cleanupTimer)
+    }
+
+    private func cancelBurstTimers() {
+        for timer in burstTimers {
+            timer.invalidate()
+        }
+        burstTimers.removeAll()
+    }
+
+    /// Apply process snapshots to workspace @Published properties.
+    private func applyProcessSnapshots(_ snapshots: [UUID: WorkspaceProcessSnapshot]) {
+        let ctrl = WorkspaceController.shared
+        for ws in ctrl.workspaces {
+            guard let snapshot = snapshots[ws.id] else {
+                ws.processSnapshot = nil
+                // Remove stale port metadata
+                let portKeys = ws.metadata.keys.filter { $0.hasPrefix("port:") }
+                for key in portKeys { ws.clearMetadata(key: key) }
+                continue
+            }
+
+            ws.processSnapshot = snapshot
+
+            // Update per-port metadata entries
+            let currentPortKeys = Set(ws.metadata.keys.filter { $0.hasPrefix("port:") })
+            var newPortKeys: Set<String> = []
+
+            for port in snapshot.ports {
+                let key = "port:\(port.port)"
+                newPortKeys.insert(key)
+                ws.setMetadata(key: key, value: ":\(port.port)", icon: "network")
+            }
+
+            // Remove stale ports
+            for staleKey in currentPortKeys.subtracting(newPortKeys) {
+                ws.clearMetadata(key: staleKey)
+            }
+
+            // Merge agent state: auto-detected agents supplement status.set
+            if snapshot.hasAgent, ws.agentState == nil {
+                ws.agentState = .working
+            }
         }
     }
 }
