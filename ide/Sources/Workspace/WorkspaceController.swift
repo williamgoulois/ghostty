@@ -270,6 +270,24 @@ final class WorkspaceController: ObservableObject {
         workspaces.swapAt(globalA, globalB)
     }
 
+    // MARK: - Jump to Pane
+
+    /// Jump to a specific pane by ID — switches workspace if needed, then focuses the pane.
+    func jumpToPane(id paneId: String) {
+        guard let uuid = UUID(uuidString: paneId),
+              let result = findSurface(id: uuid) else { return }
+
+        // Switch workspace if needed (handles cross-project too)
+        if result.workspace.id != activeWorkspace?.id {
+            switchTo(workspace: result.workspace)
+        }
+
+        // Focus the specific pane
+        guard let ctrl = terminalController else { return }
+        ctrl.focusedSurface = result.surface
+        Ghostty.moveFocus(to: result.surface)
+    }
+
     // MARK: - Break Pane
 
     /// Move the focused pane to a new workspace. Like tmux break-pane.

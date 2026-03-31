@@ -125,9 +125,7 @@ struct IDETopBarView: View {
                     isPresented: $showNotificationPanel,
                     notifications: notificationManager.recentNotifications,
                     onJumpToPane: { paneId in
-                        if let ws = controller.workspace(containingPaneId: paneId) {
-                            controller.switchTo(workspace: ws)
-                        }
+                        controller.jumpToPane(id: paneId)
                         showNotificationPanel = false
                     },
                     onClearAll: {

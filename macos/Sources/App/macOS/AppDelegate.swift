@@ -940,13 +940,11 @@ class AppDelegate: NSObject,
         withCompletionHandler: () -> Void
     ) {
 #if GHOSTTY_IDE
-        // IDE notification tap: jump to the workspace containing the pane.
+        // IDE notification tap: jump to the pane (switches workspace if needed).
         if let paneId = didReceive.notification.request.content.userInfo["pane_id"] as? String {
             DispatchQueue.main.async {
                 NSApp.activate(ignoringOtherApps: true)
-                if let ws = WorkspaceController.shared.workspace(containingPaneId: paneId) {
-                    WorkspaceController.shared.switchTo(workspace: ws)
-                }
+                WorkspaceController.shared.jumpToPane(id: paneId)
             }
             withCompletionHandler()
             return
