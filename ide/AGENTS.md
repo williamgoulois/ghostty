@@ -61,6 +61,14 @@ This gives you:
 - **Rich notifications** with the last assistant message in macOS Notification Center + in-app panel
 - **Status tracking** (add `ide status set` hooks separately if desired)
 
+## Notification Behaviors
+
+**Title enrichment:** When `--pane` is provided, the notification title is automatically enriched with project/workspace context: `"Claude Code"` becomes `"Claude Code — myproject/hotfix"`. No agent-side changes needed.
+
+**Focused-pane suppression:** Notifications are silently suppressed (not fired) when the target pane is currently focused and the app is active. This prevents redundant alerts when you're already looking at the agent's output. The response includes `"suppressed": true` so agents can detect this.
+
+**Click-to-jump:** Clicking a macOS system notification or an in-app notification row jumps to the target pane — switching workspace and project if needed.
+
 ## OpenCode Integration
 
 Install the plugin to `~/.config/opencode/plugins/ghosttyide-notify.js`. It listens for `session.idle`, `session.error`, and `permission.asked` events and sends rich notifications with event-specific context.

@@ -27,6 +27,20 @@ struct NotifyCommandTests {
         #expect(response.ok)
     }
 
+    @Test func sendResponseContainsNotificationId() {
+        let response = router.dispatch(TestCommand.make("notify.send", args: [
+            "title": "Test",
+            "body": "Some body text",
+        ]))
+        #expect(response.ok)
+        if let data = response.dataDict {
+            #expect(data["notification_id"] != nil)
+            #expect(data["title"] as? String == "Test")
+        } else {
+            Issue.record("Expected data in notify.send response")
+        }
+    }
+
     // MARK: - notify.list
 
     @Test func listIncludesSubtitle() {
