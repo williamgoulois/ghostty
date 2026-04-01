@@ -59,12 +59,19 @@ struct IDETopBarView: View {
                     )
                 }
 
-                // Agent state
-                if let agent = ws.agentState {
+                // Agent status (click = focus agent pane)
+                if let status = ws.agentStatus {
+                    let style = AgentStateStyle.from(status)
                     IDEMetadataChip(
-                        icon: agentIcon(agent),
-                        text: agent.rawValue,
-                        color: agentColor(agent)
+                        icon: style.icon,
+                        text: status,
+                        color: agentColor(style),
+                        onTap: {
+                            if let snapshot = ws.processSnapshot,
+                               let agentPaneId = snapshot.agentPaneIds.first {
+                                controller.jumpToPane(id: agentPaneId.uuidString)
+                            }
+                        }
                     )
                 }
 
@@ -206,17 +213,8 @@ struct IDETopBarView: View {
 
     // MARK: - Helpers
 
-    private func agentIcon(_ state: AgentState) -> String {
-        switch state {
-        case .idle: return "circle"
-        case .working: return "bolt.fill"
-        case .waiting: return "hourglass"
-        case .error: return "exclamationmark.triangle.fill"
-        }
-    }
-
-    private func agentColor(_ state: AgentState) -> Color {
-        switch state {
+    private func agentColor(_ style: AgentStateStyle) -> Color {
+        switch style {
         case .idle: return .secondary
         case .working: return .blue
         case .waiting: return .orange
@@ -260,6 +258,7 @@ struct IDEMetadataChip: View {
     let text: String
     var color: Color = .secondary
     var url: String?
+    var onTap: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 3) {
@@ -271,7 +270,9 @@ struct IDEMetadataChip: View {
         }
         .foregroundColor(color)
         .onTapGesture {
-            if let url, let nsURL = URL(string: url) {
+            if let onTap {
+                onTap()
+            } else if let url, let nsURL = URL(string: url) {
                 NSWorkspace.shared.open(nsURL)
             }
         }

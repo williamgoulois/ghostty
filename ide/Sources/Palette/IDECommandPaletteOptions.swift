@@ -37,7 +37,7 @@ struct IDECommandPaletteOptions {
 
             var subtitle = ws.project
             if let branch = ws.gitBranch { subtitle += " · \(branch)" }
-            if let agent = ws.agentState { subtitle += " · \(agent.rawValue)" }
+            if let agent = ws.agentStatus { subtitle += " · \(agent)" }
 
             opts.append(CommandOption(
                 title: "Workspace: Switch to \(ws.displayName)",

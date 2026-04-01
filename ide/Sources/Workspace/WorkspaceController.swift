@@ -32,8 +32,25 @@ final class WorkspaceController: ObservableObject {
     /// The active project filter. Only workspaces matching this tag are shown.
     @Published var activeProject: String = ""
 
+    /// Forwards active workspace's property changes to this controller's objectWillChange,
+    /// so views observing the controller re-render when workspace properties change.
+    private var workspaceChangeCancellable: AnyCancellable?
+    private var activeWorkspaceSink: AnyCancellable?
+
     /// Last-active workspace per project (for restoring position on project switch).
     private var lastActivePerProject: [String: UUID] = [:]
+
+    private init() {
+        // When activeWorkspace changes, subscribe to the new workspace's objectWillChange
+        activeWorkspaceSink = $activeWorkspace
+            .sink { [weak self] ws in
+                self?.workspaceChangeCancellable = ws?.objectWillChange
+                    .receive(on: DispatchQueue.main)
+                    .sink { [weak self] _ in
+                        self?.objectWillChange.send()
+                    }
+            }
+    }
 
     /// Deferred active workspace name (set during restore, activated after window creation).
     private var pendingActiveWorkspaceName: String?
@@ -667,7 +684,7 @@ final class WorkspaceController: ObservableObject {
             ]
             if let emoji = ws.emoji { dict["emoji"] = emoji }
             if let branch = ws.gitBranch { dict["git_branch"] = branch }
-            if let state = ws.agentState { dict["agent_state"] = state.rawValue }
+            if let status = ws.agentStatus { dict["agent_state"] = status }
             if ws.unreadNotifications > 0 { dict["unread"] = ws.unreadNotifications }
             if !ws.metadata.isEmpty {
                 dict["metadata"] = ws.metadata.mapValues { meta -> [String: String] in

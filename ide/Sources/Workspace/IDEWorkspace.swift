@@ -1,12 +1,40 @@
 import AppKit
 import Foundation
 
-/// State of an AI agent running in a workspace.
-enum AgentState: String, Codable {
-    case idle
-    case working
-    case waiting
-    case error
+/// Visual category for agent state display.
+enum AgentStateStyle {
+    case idle       // gray circle
+    case working    // blue bolt
+    case waiting    // orange hourglass
+    case error      // red warning
+
+    /// Derive style from a raw status string.
+    static func from(_ status: String) -> AgentStateStyle {
+        switch status {
+        case "idle": return .idle
+        case "waiting": return .waiting
+        case "error": return .error
+        default: return .working  // working, reading, editing, running command, etc.
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .idle: return "circle"
+        case .working: return "bolt.fill"
+        case .waiting: return "hourglass"
+        case .error: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .idle: return "secondary"
+        case .working: return "blue"
+        case .waiting: return "orange"
+        case .error: return "red"
+        }
+    }
 }
 
 /// Extensible key-value metadata for a workspace (ports, PR links, etc.).
@@ -42,7 +70,8 @@ final class IDEWorkspace: Identifiable, ObservableObject {
 
     // Status
     @Published var gitBranch: String?
-    @Published var agentState: AgentState?
+    /// Raw agent status string (e.g. "idle", "working", "reading", "editing", "waiting").
+    @Published var agentStatus: String?
     @Published var unreadNotifications: Int = 0
 
     // Process & port monitoring

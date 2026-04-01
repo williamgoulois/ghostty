@@ -58,6 +58,14 @@ final class WorkspaceStatusBridge {
                 self?.recomputeWorkspaceUnreadCounts(unreadPaneIds: paneIds)
             }
             .store(in: &cancellables)
+
+        // Recompute agent state when StatusStore changes (status.set / status.clear)
+        NotificationCenter.default.publisher(for: StatusStore.didChangeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.syncAllAgentStates()
+            }
+            .store(in: &cancellables)
     }
 
     func stop() {
@@ -131,33 +139,76 @@ final class WorkspaceStatusBridge {
 
     // MARK: - Agent State
 
-    /// Map StatusStore entries for panes in this workspace to workspace-level agent state.
+    /// Recompute agent status for a workspace from StatusStore + process detection.
+    /// StatusStore (hook-based) is authoritative; auto-detection is a fallback.
     private func syncAgentState(for workspace: IDEWorkspace) {
-        // Look for "agent" key in StatusStore for any pane in this workspace
-        let allStatuses = StatusStore.shared.list()
+        // Collect pane IDs belonging to this workspace
+        let ctrl = WorkspaceController.shared
+        let wsPaneIds: Set<String> = Set(
+            ctrl.allSurfaces()
+                .filter { $0.workspace.id == workspace.id }
+                .map { $0.surface.id.uuidString }
+        )
 
-        // Find the most relevant agent state from panes in this workspace
-        var highestPriority: AgentState?
+        // Determine which panes currently have an agent process running
+        let agentPaneIds = workspace.processSnapshot?.agentPaneIds ?? []
+        let agentPaneIdStrings = Set(agentPaneIds.map(\.uuidString))
 
-        for status in allStatuses {
-            guard let key = status["key"] as? String, key == "agent" else { continue }
-            guard let value = status["value"] as? String else { continue }
-
-            if let state = AgentState(rawValue: value) {
-                highestPriority = higherPriority(highestPriority, state)
+        // Clean up stale StatusStore entries: if a pane had an agent status
+        // but the agent process is gone, clear it
+        for paneId in wsPaneIds where !agentPaneIdStrings.contains(paneId) {
+            let statuses = StatusStore.shared.list(paneId: paneId)
+            if statuses.contains(where: { $0["key"] as? String == "agent" }) {
+                StatusStore.shared.clear(paneId: paneId, key: "agent")
             }
         }
 
-        workspace.agentState = highestPriority
+        // Check StatusStore for agent status from hooks (authoritative source)
+        // Pick the highest-priority status across all panes in this workspace
+        var bestStatus: String?
+        var bestPriority = -1
+        for paneId in wsPaneIds {
+            let statuses = StatusStore.shared.list(paneId: paneId)
+            for status in statuses {
+                guard status["key"] as? String == "agent",
+                      let value = status["value"] as? String else { continue }
+                let priority = statusPriority(value)
+                if priority > bestPriority {
+                    bestPriority = priority
+                    bestStatus = value
+                }
+            }
+        }
+
+        if let hookStatus = bestStatus {
+            workspace.agentStatus = hookStatus
+            return
+        }
+
+        // Fallback: auto-detect from process scanner (no hook data, default to idle)
+        if let snapshot = workspace.processSnapshot, snapshot.hasAgent {
+            workspace.agentStatus = "idle"
+        } else {
+            workspace.agentStatus = nil
+        }
     }
 
-    /// Priority: error > working > waiting > idle
-    private func higherPriority(_ a: AgentState?, _ b: AgentState) -> AgentState {
-        guard let a else { return b }
-        let order: [AgentState] = [.idle, .waiting, .working, .error]
-        let ai = order.firstIndex(of: a) ?? 0
-        let bi = order.firstIndex(of: b) ?? 0
-        return ai >= bi ? a : b
+    /// Recompute agent status for all workspaces.
+    private func syncAllAgentStates() {
+        for ws in WorkspaceController.shared.workspaces {
+            syncAgentState(for: ws)
+        }
+    }
+
+    /// Priority ranking for status strings. Higher = takes precedence.
+    /// error > waiting > any working verb > idle
+    private func statusPriority(_ status: String) -> Int {
+        switch AgentStateStyle.from(status) {
+        case .error: return 3
+        case .waiting: return 2
+        case .working: return 1
+        case .idle: return 0
+        }
     }
 
     // MARK: - Notifications
@@ -247,11 +298,9 @@ final class WorkspaceStatusBridge {
             for staleKey in currentPortKeys.subtracting(newPortKeys) {
                 ws.clearMetadata(key: staleKey)
             }
-
-            // Merge agent state: auto-detected agents supplement status.set
-            if snapshot.hasAgent, ws.agentState == nil {
-                ws.agentState = .working
-            }
         }
+
+        // Recompute agent state for all workspaces (hooks + auto-detection)
+        syncAllAgentStates()
     }
 }

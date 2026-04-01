@@ -55,11 +55,12 @@ struct WorkspacePill: View {
                     .font(.system(size: 11, weight: isActive ? .semibold : .regular))
                     .lineLimit(1)
 
-                // Agent state indicator
-                if let agent = workspace.agentState {
-                    Image(systemName: agentIcon(agent))
+                // Agent status indicator
+                if let status = workspace.agentStatus {
+                    let style = AgentStateStyle.from(status)
+                    Image(systemName: style.icon)
                         .font(.system(size: 8))
-                        .foregroundColor(agentColor(agent))
+                        .foregroundColor(agentColor(style))
                 }
 
                 // Notification dot
@@ -90,17 +91,8 @@ struct WorkspacePill: View {
         return Color.secondary.opacity(0.12)
     }
 
-    private func agentIcon(_ state: AgentState) -> String {
-        switch state {
-        case .idle: return "circle"
-        case .working: return "bolt.fill"
-        case .waiting: return "hourglass"
-        case .error: return "exclamationmark.triangle.fill"
-        }
-    }
-
-    private func agentColor(_ state: AgentState) -> Color {
-        switch state {
+    private func agentColor(_ style: AgentStateStyle) -> Color {
+        switch style {
         case .idle: return .secondary
         case .working: return .blue
         case .waiting: return .orange

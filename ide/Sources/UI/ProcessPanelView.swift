@@ -1,7 +1,50 @@
 import SwiftUI
 
+// MARK: - Grouping Helper
+
+/// A project → workspace → items grouping for panel display.
+private struct PanelGroup<Item> {
+    let project: String
+    let workspace: String
+    let workspaceId: UUID
+    let items: [Item]
+}
+
+/// Group items by project then workspace using WorkspaceController lookup.
+private func groupByProjectWorkspace<Item>(
+    _ items: [Item],
+    workspaceId: (Item) -> UUID,
+    workspaceName: (Item) -> String
+) -> [(project: String, workspaces: [(name: String, id: UUID, items: [Item])])] {
+    // Look up project for each workspace ID
+    let wsLookup = Dictionary(
+        uniqueKeysWithValues: WorkspaceController.shared.workspaces.map { ($0.id, $0.project) }
+    )
+
+    // Group by project, then by workspace
+    var byProject: [String: [UUID: (name: String, items: [Item])]] = [:]
+    for item in items {
+        let wsId = workspaceId(item)
+        let project = wsLookup[wsId] ?? "Unknown"
+        let wsName = workspaceName(item)
+        byProject[project, default: [:]][wsId, default: (wsName, [])].items.append(item)
+    }
+
+    // Sort: projects alphabetically, workspaces alphabetically within each project
+    return byProject
+        .sorted { $0.key < $1.key }
+        .map { project, workspaces in
+            let sorted = workspaces
+                .sorted { $0.value.name < $1.value.name }
+                .map { (name: $0.value.name, id: $0.key, items: $0.value.items) }
+            return (project: project, workspaces: sorted)
+        }
+}
+
+// MARK: - Process Panel
+
 /// Process monitor panel shown as a popover from the top bar.
-/// Lists AI agents and long-running processes with kill controls.
+/// Lists AI agents and long-running processes grouped by project/workspace.
 struct ProcessPanelView: View {
     @Binding var isPresented: Bool
     let snapshots: [UUID: WorkspaceProcessSnapshot]
@@ -9,20 +52,22 @@ struct ProcessPanelView: View {
     let onKillProcess: (pid_t, Int32) -> Void
     @State private var showKillAllConfirm = false
 
-    private var allProcesses: [DetectedProcess] {
-        snapshots.values.flatMap(\.processes)
-    }
-
-    private var hasContent: Bool {
-        allProcesses.contains { $0.category == .agent || $0.category == .longRunning }
-    }
-
-    private var agents: [DetectedProcess] {
-        allProcesses.filter { $0.category == .agent }
+    private var relevantProcesses: [DetectedProcess] {
+        snapshots.values
+            .flatMap(\.processes)
+            .filter { $0.category == .agent || $0.category == .longRunning }
     }
 
     private var longRunning: [DetectedProcess] {
-        allProcesses.filter { $0.category == .longRunning }
+        relevantProcesses.filter { $0.category == .longRunning }
+    }
+
+    private var grouped: [(project: String, workspaces: [(name: String, id: UUID, items: [DetectedProcess])])] {
+        groupByProjectWorkspace(
+            relevantProcesses,
+            workspaceId: \.workspaceId,
+            workspaceName: \.workspaceName
+        )
     }
 
     var body: some View {
@@ -54,32 +99,21 @@ struct ProcessPanelView: View {
 
             Divider()
 
-            if hasContent {
+            if !relevantProcesses.isEmpty {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        // AI Agents section
-                        if !agents.isEmpty {
-                            PanelSectionHeader(title: "AI Agents", icon: "bolt.fill")
-                            ForEach(agents) { proc in
-                                ProcessRow(
-                                    process: proc,
-                                    onJump: onJumpToPane,
-                                    onKill: { onKillProcess(proc.pid, SIGINT) }
-                                )
-                                Divider().padding(.leading, 12)
-                            }
-                        }
-
-                        // Long-running processes section
-                        if !longRunning.isEmpty {
-                            PanelSectionHeader(title: "Running", icon: "hourglass")
-                            ForEach(longRunning) { proc in
-                                ProcessRow(
-                                    process: proc,
-                                    onJump: onJumpToPane,
-                                    onKill: { onKillProcess(proc.pid, SIGINT) }
-                                )
-                                Divider().padding(.leading, 12)
+                        ForEach(grouped, id: \.project) { projectGroup in
+                            PanelProjectHeader(name: projectGroup.project)
+                            ForEach(projectGroup.workspaces, id: \.id) { wsGroup in
+                                PanelWorkspaceHeader(name: wsGroup.name)
+                                ForEach(wsGroup.items) { proc in
+                                    ProcessRow(
+                                        process: proc,
+                                        onJump: onJumpToPane,
+                                        onKill: { onKillProcess(proc.pid, SIGINT) }
+                                    )
+                                    Divider().padding(.leading, 24)
+                                }
                             }
                         }
                     }
@@ -99,7 +133,7 @@ struct ProcessPanelView: View {
                 .padding()
             }
         }
-        .frame(width: 320, height: 360)
+        .frame(width: 340, height: 380)
         .background(Color(nsColor: .windowBackgroundColor))
         .alert("Kill All Processes", isPresented: $showKillAllConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -114,8 +148,10 @@ struct ProcessPanelView: View {
     }
 }
 
+// MARK: - Port Panel
+
 /// Port monitor panel shown as a popover from the top bar.
-/// Lists listening TCP ports across all workspaces.
+/// Lists listening TCP ports grouped by project/workspace.
 struct PortPanelView: View {
     @Binding var isPresented: Bool
     let snapshots: [UUID: WorkspaceProcessSnapshot]
@@ -123,6 +159,14 @@ struct PortPanelView: View {
 
     private var allPorts: [DetectedPort] {
         snapshots.values.flatMap(\.ports).sorted { $0.port < $1.port }
+    }
+
+    private var grouped: [(project: String, workspaces: [(name: String, id: UUID, items: [DetectedPort])])] {
+        groupByProjectWorkspace(
+            allPorts,
+            workspaceId: \.workspaceId,
+            workspaceName: \.workspaceName
+        )
     }
 
     var body: some View {
@@ -149,9 +193,15 @@ struct PortPanelView: View {
             if !allPorts.isEmpty {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(allPorts) { port in
-                            PortRow(port: port, onJumpToPane: onJumpToPane)
-                            Divider().padding(.leading, 12)
+                        ForEach(grouped, id: \.project) { projectGroup in
+                            PanelProjectHeader(name: projectGroup.project)
+                            ForEach(projectGroup.workspaces, id: \.id) { wsGroup in
+                                PanelWorkspaceHeader(name: wsGroup.name)
+                                ForEach(wsGroup.items) { port in
+                                    PortRow(port: port, onJumpToPane: onJumpToPane)
+                                    Divider().padding(.leading, 24)
+                                }
+                            }
                         }
                     }
                 }
@@ -170,28 +220,40 @@ struct PortPanelView: View {
                 .padding()
             }
         }
-        .frame(width: 300, height: 300)
+        .frame(width: 320, height: 340)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 
 // MARK: - Shared Subviews
 
-struct PanelSectionHeader: View {
-    let title: String
-    let icon: String
+struct PanelProjectHeader: View {
+    let name: String
+
+    var body: some View {
+        Text(name)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.primary)
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 2)
+    }
+}
+
+struct PanelWorkspaceHeader: View {
+    let name: String
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 10))
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
+            Image(systemName: "square.grid.2x2")
+                .font(.system(size: 8))
+            Text(name)
+                .font(.system(size: 10, weight: .medium))
         }
         .foregroundColor(.secondary)
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 4)
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+        .padding(.bottom, 2)
     }
 }
 
@@ -218,7 +280,7 @@ struct PortRow: View {
                     .foregroundColor(.green)
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 20)
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -258,7 +320,7 @@ struct ProcessRow: View {
             .buttonStyle(.plain)
             .help("Kill process (SIGINT)")
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 20)
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .onTapGesture {

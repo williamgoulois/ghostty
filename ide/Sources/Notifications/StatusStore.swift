@@ -5,6 +5,9 @@ import Foundation
 final class StatusStore {
     static let shared = StatusStore()
 
+    /// Posted when any status entry changes (set or clear).
+    static let didChangeNotification = Notification.Name("StatusStoreDidChange")
+
     struct StatusEntry {
         let key: String
         let value: String
@@ -19,6 +22,7 @@ final class StatusStore {
     func set(paneId: String, key: String, value: String) {
         let entry = StatusEntry(key: key, value: value, paneId: paneId, updatedAt: Date())
         statuses[paneId, default: [:]][key] = entry
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
     /// Clear a specific key for a pane, or all keys if key is nil.
@@ -32,6 +36,7 @@ final class StatusStore {
         } else {
             statuses.removeAll()
         }
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
     /// List status entries, optionally filtered by pane.
