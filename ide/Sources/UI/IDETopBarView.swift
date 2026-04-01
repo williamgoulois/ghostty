@@ -39,6 +39,15 @@ struct IDETopBarView: View {
     private var leftContent: some View {
         if let ws = controller.activeWorkspace {
             HStack(spacing: 8) {
+                // Project name (first element)
+                if !controller.activeProject.isEmpty {
+                    IDEMetadataChip(
+                        icon: "folder",
+                        text: controller.activeProject,
+                        color: .secondary
+                    )
+                }
+
                 // Workspace name
                 HStack(spacing: 4) {
                     if let emoji = ws.emoji {
@@ -118,19 +127,6 @@ struct IDETopBarView: View {
     @ViewBuilder
     private var rightContent: some View {
         HStack(spacing: 8) {
-            // Project name
-            if !controller.activeProject.isEmpty {
-                Text(controller.activeProject)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.secondary.opacity(0.12))
-                    )
-            }
-
             // Port panel button
             Button {
                 showPortPanel.toggle()
@@ -138,6 +134,7 @@ struct IDETopBarView: View {
                 Image(systemName: "network")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
+                    .frame(width: 16, height: 16)
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showPortPanel, arrowEdge: .bottom) {
@@ -158,6 +155,7 @@ struct IDETopBarView: View {
                 Image(systemName: "terminal")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
+                    .frame(width: 16, height: 16)
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showProcessPanel, arrowEdge: .bottom) {
@@ -177,20 +175,23 @@ struct IDETopBarView: View {
             // Notification bell — global count across ALL projects/workspaces/panes
             let totalUnread = notificationManager.unreadPaneIds.count
             Button(action: { showNotificationPanel.toggle() }, label: {
-                HStack(spacing: 3) {
-                    Image(systemName: totalUnread > 0 ? "bell.fill" : "bell")
-                        .font(.system(size: 10))
-                    if totalUnread > 0 {
+                if totalUnread > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "bell.fill")
+                            .font(.system(size: 10))
                         Text("\(totalUnread)")
                             .font(.system(size: 10, weight: .medium))
                     }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.red))
+                } else {
+                    Image(systemName: "bell")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .frame(width: 16, height: 16)
                 }
-                .foregroundColor(totalUnread > 0 ? .white : .secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(
-                    Capsule().fill(totalUnread > 0 ? Color.red : Color.clear)
-                )
             })
             .buttonStyle(.plain)
             .popover(isPresented: $showNotificationPanel, arrowEdge: .bottom) {
